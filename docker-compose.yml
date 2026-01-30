@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: redfinger-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: redfinger_v4
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - redfinger-net
+
+  redis:
+    image: redis:alpine
+    container_name: redfinger-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - redfinger-net
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redfinger-redis-ui
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      - redis
+    networks:
+      - redfinger-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  redisinsight_data:
+
+networks:
+  redfinger-net:
+    driver: bridge
