@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner-web
     restart: always
     ports:
       - "3000:3000"
@@ -15,11 +16,43 @@ services:
       - DATABASE_URL=postgresql://foxzy911_rf:valincia911@postgres:5432/foxzy911_db
       - REDIS_URL=redis://redis:6379
       - ENABLE_FILE_LOGGING=true
-      # Jangan lupa set NEXT_PUBLIC_APP_URL sesuai domain/IP VPS kamu nanti
+      # Add other env vars here or use env_file
       # - NEXT_PUBLIC_APP_URL=https://yourdomain.com 
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_OWNER_ID=${DISCORD_OWNER_ID}
+      - TOKOPAY_MERCHANT_ID=${TOKOPAY_MERCHANT_ID}
+      - TOKOPAY_SECRET=${TOKOPAY_SECRET}
     volumes:
       - ./storage/logs:/app/storage/logs
       - ./public/uploads:/app/public/uploads
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - redfinger-net
+
+  bot:
+    container_name: redfinger-bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner-bot
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://foxzy911_rf:valincia911@postgres:5432/foxzy911_db
+      - REDIS_URL=redis://redis:6379
+      - ENABLE_FILE_LOGGING=true
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_OWNER_ID=${DISCORD_OWNER_ID}
+      - TOKOPAY_MERCHANT_ID=${TOKOPAY_MERCHANT_ID}
+      - TOKOPAY_SECRET=${TOKOPAY_SECRET}
+    volumes:
+      - ./storage/logs:/app/storage/logs
     depends_on:
       - postgres
       - redis
