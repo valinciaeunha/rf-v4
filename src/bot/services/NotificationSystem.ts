@@ -168,14 +168,21 @@ export class NotificationSystem {
             const channel = await client.channels.fetch(channelId).catch(() => null)
 
             if (channel && channel.isTextBased() && 'send' in channel) {
+                // Censor Ref ID (expired channel might be public)
+                let refIdDisplay = `\`${data.refId}\``
+                if (data.refId && data.refId.length > 8) {
+                    const prefix = data.refId.substring(0, 6)
+                    refIdDisplay = `\`${prefix}xxxxx\``
+                }
+
                 const embed = new EmbedBuilder()
                     .setTitle('Transaksi Expired / Timeout ❌')
-                    .setColor(0xEF4444) // Red for expiredd
+                    .setColor(0xEF4444) // Red
                     .addFields(
-                        { name: 'Pembeli', value: data.username, inline: true }, // Might be guest
+                        { name: 'Pembeli', value: data.username, inline: true },
                         { name: 'Produk', value: data.productName, inline: true },
                         { name: 'Jumlah', value: `${data.quantity} item`, inline: true },
-                        { name: 'Ref ID', value: `\`${data.refId}\``, inline: true },
+                        { name: 'Ref ID', value: refIdDisplay, inline: true },
                         { name: 'Alasan', value: data.reason || 'Waktu Habis', inline: false },
                         { name: 'Tanggal', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
                     )
@@ -211,26 +218,38 @@ export class NotificationSystem {
             const publicChannels = settings.publicLogChannelId ? settings.publicLogChannelId.split(',').map(id => id.trim()) : []
             const privateChannels = settings.privateLogChannelId ? settings.privateLogChannelId.split(',').map(id => id.trim()) : []
 
-            const embed = new EmbedBuilder()
-                .setTitle('💰 Deposit Berhasil')
-                .setColor(BOT_CONFIG.color)
-                .setThumbnail(data.user?.displayAvatarURL?.() || null)
-                .addFields(
-                    { name: 'User', value: `${data.user} (${data.user.username || 'Guest'})`, inline: true },
-                    { name: 'Nominal', value: `Rp ${data.amount.toLocaleString('id-ID')}`, inline: true },
-                    { name: 'Metode', value: data.method || 'QRIS', inline: true },
-                    { name: 'Ref ID', value: `\`${data.refId}\``, inline: false },
-                    { name: 'Tanggal', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: false }
-                )
-                .setFooter({ text: 'Saldo berhasil ditambahkan!' })
-                .setTimestamp()
+            // Helper to create embed (with optional censorship)
+            const createDepositEmbed = (isPublic: boolean) => {
+                // Censor Ref ID for public
+                let refIdDisplay = `\`${data.refId}\``
+                if (isPublic && data.refId && data.refId.length > 8) {
+                    const prefix = data.refId.substring(0, 6)
+                    refIdDisplay = `\`${prefix}xxxxx\``
+                } else if (isPublic) {
+                    refIdDisplay = `\`xxxxx\``
+                }
 
-            // Send to Public Channels
+                return new EmbedBuilder()
+                    .setTitle('💰 Deposit Berhasil')
+                    .setColor(BOT_CONFIG.color)
+                    .setThumbnail(data.user?.displayAvatarURL?.() || null)
+                    .addFields(
+                        { name: 'User', value: `${data.user} (${data.user.username || 'Guest'})`, inline: true },
+                        { name: 'Nominal', value: `Rp ${data.amount.toLocaleString('id-ID')}`, inline: true },
+                        { name: 'Metode', value: data.method || 'QRIS', inline: true },
+                        { name: 'Reff ID', value: refIdDisplay, inline: false },
+                        { name: 'Tanggal', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: false }
+                    )
+                    .setFooter({ text: 'Saldo berhasil ditambahkan!' })
+                    .setTimestamp()
+            }
+
+            // Send to Public Channels (CENSORED)
             for (const channelId of publicChannels) {
                 if (!channelId) continue
                 const channel = await client.channels.fetch(channelId).catch(() => null)
                 if (channel && channel.isTextBased() && 'send' in channel) {
-                    await (channel as any).send({ embeds: [embed] })
+                    await (channel as any).send({ embeds: [createDepositEmbed(true)] })
                         .then(() => {
                             console.log(`[NotificationSystem] ✅ Sent deposit log to public ${channelId}`)
                             success = true
@@ -239,12 +258,12 @@ export class NotificationSystem {
                 }
             }
 
-            // Send to Private Channels
+            // Send to Private Channels (FULL ID)
             for (const channelId of privateChannels) {
                 if (!channelId) continue
                 const channel = await client.channels.fetch(channelId).catch(() => null)
                 if (channel && channel.isTextBased() && 'send' in channel) {
-                    await (channel as any).send({ embeds: [embed] })
+                    await (channel as any).send({ embeds: [createDepositEmbed(false)] })
                         .then(() => {
                             console.log(`[NotificationSystem] ✅ Sent deposit log to private ${channelId}`)
                             success = true
