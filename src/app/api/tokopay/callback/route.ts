@@ -19,7 +19,8 @@ function verifySignature(signature: string, refId: string): boolean {
 
 // Interface for Tokopay Callback Data
 interface TokopayCallbackBody {
-    ref_id: string;
+    ref_id?: string;
+    reff_id?: string;
     status: string;
     signature: string;
     total_bayar: number | string;
@@ -43,9 +44,10 @@ export async function POST(request: NextRequest) {
 
         // If data is empty, try params (for GET or mixed)
         const searchParams = request.nextUrl.searchParams;
-        if (!data.ref_id && searchParams.get('ref_id')) {
+        if (!data.ref_id && !data.reff_id && (searchParams.get('ref_id') || searchParams.get('reff_id'))) {
             data = {
                 ref_id: searchParams.get('ref_id'),
+                reff_id: searchParams.get('reff_id'),
                 status: searchParams.get('status'),
                 signature: searchParams.get('signature'),
                 total_bayar: searchParams.get('total_bayar'),
@@ -54,8 +56,9 @@ export async function POST(request: NextRequest) {
             };
         }
 
+        // Map reff_id to ref_id
+        const ref_id = data.ref_id || data.reff_id;
         const {
-            ref_id,
             status,
             signature,
             total_bayar,
