@@ -42,8 +42,19 @@ export async function sendDiscordSuccessLog(data: {
             timestamp: new Date().toISOString()
         };
 
-        if (publicLogChannelId) await postToDiscord(publicLogChannelId, { embeds: [publicEmbed] }, botToken);
-        if (privateLogChannelId) await postToDiscord(privateLogChannelId, { embeds: [privateEmbed] }, botToken);
+        // Handle multiple channel IDs (comma-separated)
+        if (publicLogChannelId) {
+            const ids = publicLogChannelId.split(',').map(id => id.trim()).filter(Boolean);
+            for (const channelId of ids) {
+                await postToDiscord(channelId, { embeds: [publicEmbed] }, botToken);
+            }
+        }
+        if (privateLogChannelId) {
+            const ids = privateLogChannelId.split(',').map(id => id.trim()).filter(Boolean);
+            for (const channelId of ids) {
+                await postToDiscord(channelId, { embeds: [privateEmbed] }, botToken);
+            }
+        }
 
     } catch (error) {
         logger.error("Discord Logger Error:", error);
@@ -73,10 +84,19 @@ export async function sendDiscordDepositLog(data: {
             footer: { text: "Redfinger Store System" }
         };
 
-        // Notify public/private channels
-        if (publicLogChannelId) await postToDiscord(publicLogChannelId, { embeds: [embed] }, botToken);
-        // Maybe private only? Or both. Let's do both for audit.
-        if (privateLogChannelId) await postToDiscord(privateLogChannelId, { embeds: [embed] }, botToken);
+        // Handle multiple channel IDs (comma-separated)
+        if (publicLogChannelId) {
+            const ids = publicLogChannelId.split(',').map(id => id.trim()).filter(Boolean);
+            for (const channelId of ids) {
+                await postToDiscord(channelId, { embeds: [embed] }, botToken);
+            }
+        }
+        if (privateLogChannelId) {
+            const ids = privateLogChannelId.split(',').map(id => id.trim()).filter(Boolean);
+            for (const channelId of ids) {
+                await postToDiscord(channelId, { embeds: [embed] }, botToken);
+            }
+        }
 
     } catch (error) {
         logger.error("Discord Deposit Logger Error:", error);
