@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
         // Verify signature
         if (!verifySignature(signature, ref_id)) {
-            logger.warn("Invalid signature for callback:", { ref_id, signature, ip: request.ip })
+            logger.warn("Invalid signature for callback:", { ref_id, signature, ip: request.headers.get("x-forwarded-for") || "unknown" })
             return NextResponse.json({ status: "error", message: "Invalid signature" }, { status: 401 })
         }
 
