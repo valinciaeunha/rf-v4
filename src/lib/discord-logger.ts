@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 const DISCORD_API = "https://discord.com/api/v10";
+const BOT_COLOR = 0x4A90D9; // Match BOT_CONFIG.color
 
 // Helper to send message directly via REST API (bypassing Client)
 export async function sendDiscordSuccessLog(data: {
@@ -11,34 +12,60 @@ export async function sendDiscordSuccessLog(data: {
     productName: string;
     stockContent: string;
     user: { username: string; discordId?: string | null };
+    quantity?: number;
 }) {
     try {
-        const { transaction, productName, stockContent, user } = data;
+        const { transaction, productName, stockContent, user, quantity = 1 } = data;
         const { publicLogChannelId, privateLogChannelId, botToken } = await getSettings();
 
-        if (!botToken) return;
+        if (!botToken) {
+            logger.warn("Discord Logger: No bot token found");
+            return;
+        }
+
+        // Timestamp for Discord's relative time format
+        const timestamp = Math.floor(Date.now() / 1000);
+
+        // --- Public Embed (Censored Transaction ID) ---
+        let txIdDisplay = transaction.orderId;
+        if (transaction.orderId && transaction.orderId.length > 8) {
+            const prefix = transaction.orderId.substring(0, 6);
+            txIdDisplay = `${prefix}xxxxx`;
+        } else {
+            txIdDisplay = 'xxxxx';
+        }
 
         const publicEmbed = {
-            title: "✅ Transaksi Sukses",
-            color: 0x00FF00,
+            title: "Pembelian Baru! 🎉",
+            color: BOT_COLOR,
             fields: [
+                { name: "Pembeli", value: user.discordId ? `<@${user.discordId}> (${user.username})` : `Guest (${user.username})`, inline: true },
                 { name: "Produk", value: productName, inline: true },
-                { name: "Harga", value: `Rp${Number(transaction.price).toLocaleString('id-ID')}`, inline: true },
-                { name: "Pembeli", value: user.username, inline: true },
-                { name: "Order ID", value: transaction.orderId, inline: false },
-                { name: "Metode", value: transaction.paymentMethod, inline: false },
+                { name: "Jumlah", value: `${quantity} item`, inline: true },
+                { name: "Harga", value: `Rp ${Number(transaction.price).toLocaleString('id-ID')}`, inline: true },
+                { name: "Metode", value: transaction.paymentMethod || 'N/A', inline: true },
+                { name: "Transaction ID", value: `\`${txIdDisplay}\``, inline: false },
+                { name: "Tanggal", value: `<t:${timestamp}:R>`, inline: false },
             ],
-            timestamp: new Date().toISOString(),
-            footer: { text: "Redfinger Store System" }
+            footer: { text: "Terima kasih telah berbelanja!" },
+            timestamp: new Date().toISOString()
         };
 
+        // --- Private Embed (Full Transaction ID + Stock) ---
         const privateEmbed = {
-            title: "✅ Transaksi Sukses (Private Log)",
-            color: 0x00FF00,
-            description: `Order ID: **${transaction.orderId}**\nPembeli: <@${user.discordId || 'WebUser'}> (${user.username})\nProduk: ${productName}`,
+            title: "Pembelian Baru! 🎉",
+            color: BOT_COLOR,
             fields: [
-                { name: "Stock/Data", value: `\`\`\`${stockContent.substring(0, 1000)}\`\`\`` }
+                { name: "Pembeli", value: user.discordId ? `<@${user.discordId}> (${user.username})` : `Guest (${user.username})`, inline: true },
+                { name: "Produk", value: productName, inline: true },
+                { name: "Jumlah", value: `${quantity} item`, inline: true },
+                { name: "Harga", value: `Rp ${Number(transaction.price).toLocaleString('id-ID')}`, inline: true },
+                { name: "Metode", value: transaction.paymentMethod || 'N/A', inline: true },
+                { name: "Transaction ID", value: `\`${transaction.orderId}\``, inline: false },
+                { name: "Tanggal", value: `<t:${timestamp}:R>`, inline: false },
+                { name: "📄 Data Stok", value: stockContent ? `\`\`\`\n${stockContent.substring(0, 1000)}\`\`\`` : '_Tidak ada data_', inline: false },
             ],
+            footer: { text: "Terima kasih telah berbelanja!" },
             timestamp: new Date().toISOString()
         };
 
@@ -56,6 +83,8 @@ export async function sendDiscordSuccessLog(data: {
             }
         }
 
+        logger.info(`Discord log sent for transaction: ${transaction.orderId}`);
+
     } catch (error) {
         logger.error("Discord Logger Error:", error);
     }
@@ -69,19 +98,25 @@ export async function sendDiscordDepositLog(data: {
         const { deposit, user } = data;
         const { publicLogChannelId, privateLogChannelId, botToken } = await getSettings();
 
-        if (!botToken) return;
+        if (!botToken) {
+            logger.warn("Discord Deposit Logger: No bot token found");
+            return;
+        }
+
+        const timestamp = Math.floor(Date.now() / 1000);
 
         const embed = {
             title: "💰 Deposit Berhasil",
             color: 0x00AAFF, // Blue
             fields: [
-                { name: "User", value: user.username, inline: true },
-                { name: "Nominal", value: `Rp${Number(deposit.amount).toLocaleString('id-ID')}`, inline: true },
-                { name: "Reff ID", value: deposit.refId, inline: false },
-                { name: "Metode", value: deposit.paymentChannel, inline: false },
+                { name: "User", value: user.discordId ? `<@${user.discordId}> (${user.username})` : `Guest (${user.username})`, inline: true },
+                { name: "Nominal", value: `Rp ${Number(deposit.amount).toLocaleString('id-ID')}`, inline: true },
+                { name: "Reff ID", value: `\`${deposit.refId}\``, inline: false },
+                { name: "Metode", value: deposit.paymentChannel || 'QRIS', inline: false },
+                { name: "Tanggal", value: `<t:${timestamp}:R>`, inline: false },
             ],
-            timestamp: new Date().toISOString(),
-            footer: { text: "Redfinger Store System" }
+            footer: { text: "Saldo berhasil ditambahkan!" },
+            timestamp: new Date().toISOString()
         };
 
         // Handle multiple channel IDs (comma-separated)
@@ -97,6 +132,8 @@ export async function sendDiscordDepositLog(data: {
                 await postToDiscord(channelId, { embeds: [embed] }, botToken);
             }
         }
+
+        logger.info(`Discord deposit log sent: ${deposit.refId}`);
 
     } catch (error) {
         logger.error("Discord Deposit Logger Error:", error);
@@ -115,6 +152,8 @@ async function getSettings() {
 
 async function postToDiscord(channelId: string, payload: any, token: string) {
     try {
+        logger.info(`Sending to Discord channel: ${channelId}`);
+
         const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
@@ -125,11 +164,10 @@ async function postToDiscord(channelId: string, payload: any, token: string) {
         });
 
         if (!response.ok) {
-            // Ignore 404/403 if ID invalid
             const err = await response.text();
-            if (response.status !== 404) {
-                logger.error(`Discord API Error (${response.status}): ${err}`);
-            }
+            logger.error(`Discord API Error (${response.status}) for channel ${channelId}: ${err}`);
+        } else {
+            logger.info(`Discord message sent to channel ${channelId}`);
         }
     } catch (error) {
         logger.error("Discord Request Failed:", error);
