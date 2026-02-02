@@ -127,6 +127,24 @@ export async function POST(request: NextRequest) {
             if (result.type === "already_processed") {
                 return NextResponse.json({ status: "ok", message: "Already processed" })
             } else if (result.type === "success") {
+                // Send Discord Notification
+                try {
+                    const { sendDiscordDepositLog } = await import("@/lib/discord-logger");
+                    const { users } = await import("@/lib/db/schema");
+                    // Fetch user details
+                    if (deposit.userId) {
+                        const user = await db.query.users.findFirst({ where: eq(users.id, deposit.userId) });
+                        if (user) {
+                            await sendDiscordDepositLog({
+                                deposit: { ...deposit, amount: deposit.amount, refId: deposit.refId, paymentChannel: deposit.paymentChannel },
+                                user: { username: user.username, discordId: user.discordId }
+                            });
+                        }
+                    }
+                } catch (e) {
+                    logger.error("Failed to send Deposit log:", e);
+                }
+
                 return NextResponse.json({ status: "ok", message: "Deposit processed" })
             } else if (result.type === "expired" || result.type === "failed") {
                 return NextResponse.json({ status: "ok", message: `Deposit ${result.type}` })
@@ -177,6 +195,36 @@ export async function POST(request: NextRequest) {
                     await tx.delete(transactionQueues)
                         .where(eq(transactionQueues.transactionId, transaction.id))
                 })
+
+                // Send Discord Notification via REST API (Direct from Web)
+                try {
+                    const { sendDiscordSuccessLog } = await import("@/lib/discord-logger");
+                    const { products, users } = await import("@/lib/db/schema");
+
+                    // Fetch additional data needed for log
+                    const product = await db.query.products.findFirst({ where: eq(products.id, transaction.productId) });
+                    const user = transaction.userId ? await db.query.users.findFirst({ where: eq(users.id, transaction.userId) }) : null;
+
+                    if (product && user) {
+                        await sendDiscordSuccessLog({
+                            transaction: {
+                                price: transaction.price,
+                                orderId: transaction.orderId,
+                                paymentMethod: transaction.paymentMethod
+                            },
+                            productName: product.name,
+                            stockContent: stockCodes.join("\n"),
+                            user: { username: user.username, discordId: user.discordId }
+                        });
+
+                        // Mark as notified IF log success
+                        await db.update(transactions)
+                            .set({ isNotified: true })
+                            .where(eq(transactions.id, transaction.id));
+                    }
+                } catch (e) {
+                    logger.error("Failed to send Discord log from callback:", e);
+                }
 
                 return NextResponse.json({ status: "ok", message: "Transaction processed" })
             } else if (status === "Expired" || status === "Failed") {
