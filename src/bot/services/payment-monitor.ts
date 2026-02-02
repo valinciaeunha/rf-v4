@@ -74,7 +74,7 @@ async function checkExpiredTransactions(client: ExtendedClient) {
         await NotificationSystem.sendExpiredLog(client, {
             username: username,
             productName: productName,
-            quantity: 1,
+            quantity: trx.quantity,
             refId: trx.orderId!,
             reason: 'Waktu pembayaran habis (Timeout)'
         }, GUILD_ID)
@@ -245,7 +245,8 @@ async function checkCompletedTransactions(client: ExtendedClient) {
         assignedStocks: transactions.assignedStocks,
         productName: products.name,
         price: transactions.price,
-        paymentMethod: transactions.paymentMethod
+        paymentMethod: transactions.paymentMethod,
+        quantity: transactions.quantity,
     })
         .from(transactions)
         .leftJoin(products, eq(transactions.productId, products.id))
@@ -287,7 +288,7 @@ async function checkCompletedTransactions(client: ExtendedClient) {
         const notificationSent = await NotificationSystem.sendSuccessLog(client, {
             user: discordUser || { username: 'Guest/Web User', displayAvatarURL: () => null, toString: () => 'Guest' },
             productName: tx.productName || 'Unknown Product',
-            quantity: 1,
+            quantity: tx.quantity,
             price: Number(tx.price),
             method: tx.paymentMethod,
             transactionId: tx.orderId!,
