@@ -99,30 +99,9 @@ export async function handleTopupMethodButton(interaction: any) {
         const methodKey = type === 'qrisrt' ? 'qris_realtime' : 'qris'
         const refId = `DEP-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
-        // Fee Calculation
-        let fee = 0
-        let totalBayar = amount
-
-        if (methodKey === 'qris_realtime') {
-            fee = Math.ceil(amount * 0.017) // 1.7% Fee
-            totalBayar = amount + fee
-        }
-
-        // 2. Create Deposit Record
-        const [deposit] = await db.insert(deposits).values({
-            userId: dbUser.id,
-            amount: amount.toString(),
-            totalBayar: totalBayar.toString(),
-            paymentChannel: methodKey,
-            refId: refId,
-            trxId: refId, // Temporary
-            status: 'pending',
-            source: 'bot'
-        }).returning()
-
-        // 3. Call Tokopay
+        // 2. Call Tokopay FIRST to get actual fee info
         const result = await createTokopayOrder({
-            amount: totalBayar, // Use Total Check (Amount + Fee)
+            amount: amount, // Send requested amount, Tokopay will calculate total with fee
             channel: methodKey,
             refId: refId,
             customerName: dbUser.username,
@@ -135,6 +114,26 @@ export async function handleTopupMethodButton(interaction: any) {
         }
 
         const data = result.data
+
+        // Get actual fee from Tokopay response
+        const totalBayar = data.total_bayar || amount
+        const totalDiterima = data.total_diterima || amount
+        const fee = totalBayar - totalDiterima // Actual fee from Tokopay
+
+        console.log(`[Topup] Amount: ${amount}, TotalBayar: ${totalBayar}, TotalDiterima: ${totalDiterima}, Fee: ${fee}`)
+
+        // 3. Create Deposit Record with correct fee info
+        const [deposit] = await db.insert(deposits).values({
+            userId: dbUser.id,
+            amount: amount.toString(),
+            totalBayar: totalBayar.toString(),
+            totalDiterima: totalDiterima.toString(),
+            paymentChannel: methodKey,
+            refId: refId,
+            trxId: data.trx_id || refId,
+            status: 'pending',
+            source: 'bot'
+        }).returning()
 
         // 4. Generate QR
         let attachment: AttachmentBuilder | null = null
