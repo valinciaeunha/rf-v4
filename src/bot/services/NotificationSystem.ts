@@ -159,7 +159,7 @@ export class NotificationSystem {
             if (channel && channel.isTextBased() && 'send' in channel) {
                 const embed = new EmbedBuilder()
                     .setTitle('Transaksi Expired / Timeout ❌')
-                    .setColor(0xEF4444) // Red
+                    .setColor(0xEF4444) // Red for expiredd
                     .addFields(
                         { name: 'Pembeli', value: data.username, inline: true }, // Might be guest
                         { name: 'Produk', value: data.productName, inline: true },
