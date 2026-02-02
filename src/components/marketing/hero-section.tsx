@@ -6,6 +6,9 @@ import { ArrowRight, Sparkles, Shield, Zap, Headset } from "lucide-react"
 import { motion } from "motion/react"
 import { WorldMap } from "@/components/ui/world-map"
 import { TextGradient } from "@/components/text-gradient"
+import { useEffect, useState } from "react"
+import { getUserCount } from "@/lib/actions/users"
+import { Avatar, AvatarFallback, AvatarImage, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 
 // Animation variants
 const fadeInUp = {
@@ -39,6 +42,27 @@ const scaleIn = {
 }
 
 export function HeroSection() {
+    const [userCount, setUserCount] = useState<number>(0);
+
+    useEffect(() => {
+        const fetchUserCount = async () => {
+            try {
+                const count = await getUserCount();
+                setUserCount(count);
+            } catch (error) {
+                console.error("Failed to fetch user count:", error);
+            }
+        };
+
+        fetchUserCount();
+    }, []);
+
+    const displayCount = userCount > 2000 ? userCount.toLocaleString() : "2,000+";
+    const remainingCount = userCount > 2000 ? userCount - 5 : 2000;
+    const badgeText = remainingCount >= 1000
+        ? `+${Math.floor(remainingCount / 1000)}K`
+        : `+${remainingCount}`;
+
     return (
         <section className="relative w-full min-h-[90vh] flex items-center justify-center overflow-hidden bg-background">
             {/* Background effects */}
@@ -131,7 +155,7 @@ export function HeroSection() {
                             size="lg"
                             className="h-10 sm:h-12 px-4 sm:px-8 text-sm sm:text-base font-semibold shadow-sm transition-all duration-300 hover:scale-[1.02]"
                         >
-                            <Link href="/login">
+                            <Link href="/dashboard">
                                 Beli Kode Sekarang
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Link>
@@ -147,22 +171,23 @@ export function HeroSection() {
                     </motion.div>
 
                     {/* Trust indicators */}
+                    {/* Trust indicators */}
                     <motion.div
                         variants={fadeInUp}
-                        className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-muted-foreground"
+                        className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:gap-6 pt-8 text-[10px] sm:text-sm text-muted-foreground"
                     >
-                        <div className="flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-primary" />
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            <Shield className="h-3 w-3 sm:h-5 sm:w-5 text-primary" />
                             <span>100% Aman & Terpercaya</span>
                         </div>
                         <div className="hidden sm:block w-px h-4 bg-border" />
-                        <div className="flex items-center gap-2">
-                            <Zap className="h-5 w-5 text-primary" />
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            <Zap className="h-3 w-3 sm:h-5 sm:w-5 text-primary" />
                             <span>Proses Instan</span>
                         </div>
                         <div className="hidden sm:block w-px h-4 bg-border" />
-                        <div className="flex items-center gap-2">
-                            <Headset className="h-5 w-5 text-primary" />
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            <Headset className="h-3 w-3 sm:h-5 sm:w-5 text-primary" />
                             <span>24/7 Support</span>
                         </div>
                     </motion.div>
@@ -172,23 +197,19 @@ export function HeroSection() {
                         variants={fadeInUp}
                         className="flex flex-col items-center gap-4 pt-8"
                     >
-                        <div className="flex items-center -space-x-3">
+                        <AvatarGroup>
                             {[1, 2, 3, 4, 5].map((i) => (
-                                <div
-                                    key={i}
-                                    className="h-10 w-10 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden"
-                                >
-                                    <span className="text-xs font-medium text-muted-foreground">
-                                        {String.fromCharCode(64 + i)}
-                                    </span>
-                                </div>
+                                <Avatar key={i} size="lg" className="border-2 border-background">
+                                    <AvatarImage src={`/avatar/${i}.webp`} alt={`User ${i}`} />
+                                    <AvatarFallback>U{i}</AvatarFallback>
+                                </Avatar>
                             ))}
-                            <div className="h-10 w-10 rounded-full border-2 border-background bg-foreground flex items-center justify-center">
-                                <span className="text-xs font-bold text-background">+2K</span>
-                            </div>
-                        </div>
+                            <AvatarGroupCount className="border-2 border-background bg-foreground text-background font-bold">
+                                {badgeText}
+                            </AvatarGroupCount>
+                        </AvatarGroup>
                         <p className="text-sm text-muted-foreground">
-                            Dipercaya oleh <span className="font-semibold text-foreground">2,000+</span> pengguna aktif
+                            Dipercaya oleh <span className="font-semibold text-foreground">{displayCount}</span> pengguna aktif
                         </p>
                     </motion.div>
                 </motion.div>

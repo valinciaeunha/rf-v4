@@ -14,6 +14,7 @@ import {
     checkRateLimit,
     resetRateLimit,
 } from '@/lib/auth';
+import { loginSchema, registerSchema, validateInput } from '@/lib/validations';
 
 // ============== LOGIN ==============
 export interface LoginResult {
@@ -23,13 +24,18 @@ export interface LoginResult {
 }
 
 export async function loginAction(formData: FormData): Promise<LoginResult> {
-    const login = formData.get('login') as string;
-    const password = formData.get('password') as string;
+    const rawData = {
+        login: formData.get('login') as string,
+        password: formData.get('password') as string,
+    };
 
-    // Validation
-    if (!login || !password) {
-        return { success: false, error: 'Email dan password wajib diisi' };
+    // Zod Validation
+    const validation = validateInput(loginSchema, rawData);
+    if (!validation.success) {
+        return { success: false, error: validation.error };
     }
+
+    const { login, password } = validation.data;
 
     // Get IP for rate limiting
     const headersList = await headers();
@@ -95,18 +101,33 @@ export interface RegisterResult {
 }
 
 export async function registerAction(formData: FormData): Promise<RegisterResult> {
-    const username = formData.get('username') as string;
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const whatsapp = formData.get('whatsapp') as string | null;
+    const rawData = {
+        username: formData.get('username') as string,
+        email: formData.get('email') as string,
+        password: formData.get('password') as string,
+        whatsapp: formData.get('whatsapp') as string || '',
+    };
 
-    // Validation
-    if (!username || !email || !password) {
-        return { success: false, error: 'Semua field wajib diisi' };
+    // Zod Validation
+    const validation = validateInput(registerSchema, rawData);
+    if (!validation.success) {
+        return { success: false, error: validation.error };
     }
 
-    if (password.length < 8) {
-        return { success: false, error: 'Password minimal 8 karakter' };
+    const { username, email, password, whatsapp } = validation.data;
+
+    // Get IP for rate limiting
+    const headersList = await headers();
+    const ip = headersList.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+
+    // Rate limit check for register (prevent spam registration)
+    const rateLimit = await checkRateLimit(ip, 'register');
+    if (!rateLimit.success) {
+        return {
+            success: false,
+            error: `Terlalu banyak percobaan registrasi. Coba lagi dalam ${Math.ceil(rateLimit.resetIn / 60)} menit`,
+            code: 'RATE_LIMITED',
+        };
     }
 
     // Check if email exists
@@ -152,6 +173,9 @@ export async function registerAction(formData: FormData): Promise<RegisterResult
         username: newUser.username,
         role: newUser.role,
     });
+
+    // Reset rate limit on successful registration
+    await resetRateLimit(ip, 'register');
 
     return { success: true };
 }

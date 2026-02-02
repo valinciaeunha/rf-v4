@@ -1,6 +1,14 @@
 import { LoginForm } from "@/components/login-form"
-
+import { Suspense } from "react"
 import Link from "next/link"
+
+function LoginFormFallback() {
+    return (
+        <div className="flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+    )
+}
 
 export default function LoginPage() {
     return (
@@ -9,7 +17,9 @@ export default function LoginPage() {
                 <img src="/logo.png" alt="Redfinger Icon" className="h-6 w-auto" />
                 Redfinger
             </Link>
-            <LoginForm />
+            <Suspense fallback={<LoginFormFallback />}>
+                <LoginForm />
+            </Suspense>
         </div>
     )
 }

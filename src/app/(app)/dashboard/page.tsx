@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSessionUser } from "@/lib/actions/auth";
+import { getDashboardData } from "@/lib/actions/dashboard";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { DashboardChart } from "@/components/dashboard-chart";
 import { RecentActivity } from "@/components/recent-activity";
@@ -14,7 +14,17 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 
-type DashboardData = any;
+interface DashboardData {
+    stats: Array<{ label: string; value: string; trend: string; desc: string }>;
+    chartData: Array<{ date: string; transactions: number; deposits?: number }>;
+    recentActivity: Array<{
+        type: string;
+        title: string;
+        desc: string;
+        amount: string;
+        positive: boolean;
+    }>;
+}
 
 export default function DashboardPage() {
     const [data, setData] = useState<DashboardData | null>(null);
@@ -23,42 +33,71 @@ export default function DashboardPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch real user data for balance
-                const user = await getSessionUser();
-                const realBalance = user?.balance ? `Rp ${parseInt(user.balance).toLocaleString('id-ID')}` : "Rp 0";
+                const result = await getDashboardData();
 
-                // Mock data temporarily
-                await new Promise(r => setTimeout(r, 1000)); // Simulate delay
-                const dummyData = {
-                    stats: [
-                        { label: "Saldo", value: realBalance, trend: "+0%", desc: "available balance" },
-                        { label: "Total Revenue", value: "Rp 12.500.000", trend: "+20.1%", desc: "from last month" },
-                        { label: "Subscriptions", value: "+2350", trend: "+180.1%", desc: "from last month" },
-                        { label: "Sales", value: "+12,234", trend: "+19%", desc: "from last month" },
-                    ],
-                    chartData: [
-                        { name: "Jan", total: Math.floor(Math.random() * 5000) + 1000 },
-                        { name: "Feb", total: Math.floor(Math.random() * 5000) + 1000 },
-                        { name: "Mar", total: Math.floor(Math.random() * 5000) + 1000 },
-                        { name: "Apr", total: Math.floor(Math.random() * 5000) + 1000 },
-                        { name: "May", total: Math.floor(Math.random() * 5000) + 1000 },
-                        { name: "Jun", total: Math.floor(Math.random() * 5000) + 1000 },
-                    ],
-                    recentActivity: [
-                        {
-                            user: { name: "Jackson Lee", email: "jackson.lee@email.com", avatar: "/avatars/01.png" },
-                            amount: "+$1,999.00",
-                            status: "Success"
-                        },
-                        {
-                            user: { name: "Isabella Nguyen", email: "isabella.nguyen@email.com", avatar: "/avatars/03.png" },
-                            amount: "+$299.00",
-                            status: "Processing"
-                        },
-                    ]
-                };
+                if (!result.success || !result.data) {
+                    toast.error(result.error || "Gagal memuat data");
+                    setLoading(false);
+                    return;
+                }
 
-                setData(dummyData);
+                const { stats, chartData, recentActivity } = result.data;
+                // Transform stats to match component format
+                const formattedStats = [
+                    {
+                        label: "Saldo",
+                        value: stats.balance,
+                        trend: "+0%",
+                        desc: "Tersedia",
+                    },
+                    {
+                        label: "Total Deposit",
+                        value: stats.totalDeposits,
+                        trend: "+0%",
+                        desc: "top up sukses",
+                    },
+                    {
+                        label: "Transaksi",
+                        value: stats.totalTransactions.toString(),
+                        trend: `${stats.successRate}%`,
+                        desc: `${stats.successTransactions} sukses, ${stats.expiredTransactions} expired`,
+                    },
+                    {
+                        label: "Total Belanja",
+                        value: stats.totalSpent,
+                        trend: "+0%",
+                        desc: "pengeluaran",
+                    },
+                ];
+
+                // Transform chart data
+                const formattedChartData = chartData.map((item) => ({
+                    date: item.date,
+                    transactions: item.transactions,
+                }));
+
+                // Transform recent activity
+                // Deposits = positive (+ green)
+                // Purchases = negative (-) ONLY if paid with balance
+                const formattedActivity = recentActivity.map((item) => {
+                    const isDeposit = item.type === "deposit";
+                    const showMinus = !isDeposit && item.paidWithBalance;
+                    const showPlus = isDeposit && item.positive; // Only successful deposits show +
+
+                    return {
+                        type: isDeposit ? "wallet" : "smartphone",
+                        title: item.title,
+                        desc: item.desc,
+                        amount: showPlus ? `+${item.amount}` : showMinus ? `-${item.amount}` : item.amount,
+                        positive: showPlus, // Green for successful deposits
+                    };
+                });
+
+                setData({
+                    stats: formattedStats,
+                    chartData: formattedChartData,
+                    recentActivity: formattedActivity,
+                });
             } catch (error) {
                 console.error(error);
                 toast.error("Terjadi kesalahan koneksi");
@@ -93,9 +132,9 @@ export default function DashboardPage() {
                     ))}
                 </div>
 
-                <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="flex flex-col gap-4 md:gap-6">
                     {/* Chart Skeleton */}
-                    <Card className="col-span-1 lg:col-span-2">
+                    <Card>
                         <CardHeader>
                             <Skeleton className="h-6 w-40 mb-2" />
                             <Skeleton className="h-4 w-60" />
@@ -106,7 +145,7 @@ export default function DashboardPage() {
                     </Card>
 
                     {/* Recent Activity Skeleton */}
-                    <Card className="col-span-1 lg:col-span-2 xl:col-span-1">
+                    <Card>
                         <CardHeader>
                             <Skeleton className="h-6 w-32 mb-2" />
                             <Skeleton className="h-4 w-48" />
@@ -129,13 +168,19 @@ export default function DashboardPage() {
         );
     }
 
-    if (!data) return null;
+    if (!data) {
+        return (
+            <div className="flex flex-1 flex-col items-center justify-center p-4 md:p-6">
+                <p className="text-muted-foreground">Tidak ada data untuk ditampilkan</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-1 flex-col p-4 md:p-6">
             <DashboardStats stats={data.stats} />
 
-            <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="flex flex-col gap-4 md:gap-6">
                 <DashboardChart data={data.chartData} />
                 <RecentActivity activities={data.recentActivity} />
             </div>

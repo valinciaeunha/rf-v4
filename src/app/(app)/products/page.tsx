@@ -1,15 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, ShoppingCart, Search, Star, Loader2, Cpu, Smartphone, HardDrive, Layers, MemoryStick } from "lucide-react"
+import { Check, ShoppingCart, Search, Star, Loader2, Cpu, Smartphone, HardDrive, Layers, MemoryStick, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { getProducts } from "@/lib/actions/products"
-
-// ... imports
+import useSWR from "swr"
 
 const formatRupiah = (number: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -20,9 +19,6 @@ const formatRupiah = (number: number) => {
     }).format(number).replace("IDR", "Rp").trim()
 }
 
-import useSWR from "swr"
-
-// Helper moved outside or inside component
 const getDurationLabel = (days: number) => {
     if (days === 1) return "Harian"
     if (days === 7) return "Mingguan"
@@ -44,10 +40,10 @@ export default function ProductsPage() {
     }
 
     const { data: products, error, isLoading } = useSWR('products-list', fetcher, {
-        revalidateOnFocus: false, // Don't revalidate on window focus (prevent flicker)
-        dedupingInterval: 3600000, // Cache for 1 hour as requested
-        keepPreviousData: true, // Keep data while revalidating
-        fallbackData: [], // Initial empty state, handled by isLoading
+        revalidateOnFocus: false,
+        dedupingInterval: 3600000,
+        keepPreviousData: true,
+        fallbackData: [],
     })
 
     const filteredProducts = (products || []).filter((product: any) => {
@@ -57,55 +53,43 @@ export default function ProductsPage() {
         return matchesSearch && matchesFilter
     })
 
-    // Show skeleton if loading AND we have no data yet (or empty fallback)
-    // If we have cached data, we show that instead (stale-while-revalidate)
     const showSkeleton = isLoading && (!products || products.length === 0)
 
     if (showSkeleton) {
         return (
-            <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-                {/* Filter & Search Skeleton */}
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between max-w-7xl mx-auto w-full bg-card/50 p-4 rounded-xl border border-border/50 backdrop-blur-sm sticky top-16 z-30">
-                    <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 items-center no-scrollbar">
+            <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+                <div className="flex flex-col md:flex-row gap-3 items-center justify-between max-w-7xl mx-auto w-full bg-card/50 p-3 rounded-lg border border-border/50 backdrop-blur-sm sticky top-16 z-30">
+                    <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 items-center no-scrollbar">
                         {[...Array(5)].map((_, i) => (
-                            <Skeleton key={i} className="h-8 w-20 rounded-full shrink-0" />
+                            <Skeleton key={i} className="h-7 w-16 rounded-full shrink-0" />
                         ))}
                     </div>
-                    <div className="w-full md:w-72">
-                        <Skeleton className="h-10 w-full rounded-full" />
+                    <div className="w-full md:w-56">
+                        <Skeleton className="h-8 w-full rounded-full" />
                     </div>
                 </div>
-
-                {/* Product Grid Skeleton */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-7xl mx-auto w-full">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full">
                     {[...Array(8)].map((_, i) => (
-                        <div key={i} className="flex flex-col p-4 md:p-5 rounded-xl border border-border/50 bg-card/20 h-full">
-                            {/* Title */}
-                            <Skeleton className="h-5 w-3/4 mb-3" />
-
-                            {/* Price */}
-                            <div className="mb-4 flex flex-col md:flex-row md:items-baseline gap-2">
-                                <Skeleton className="h-7 w-1/2" />
-                                <Skeleton className="h-3 w-1/4" />
+                        <div key={i} className="flex flex-col p-3 rounded-lg border border-border/50 bg-card/20 h-full">
+                            <Skeleton className="h-4 w-3/4 mb-1.5" />
+                            <div className="mb-2 flex flex-row items-baseline gap-1">
+                                <Skeleton className="h-5 w-16" />
+                                <Skeleton className="h-2.5 w-8" />
                             </div>
-
-                            {/* Specs List */}
-                            <div className="flex-1 space-y-2 mb-4">
+                            <div className="flex-1 space-y-1 mb-2.5">
                                 {[...Array(5)].map((_, j) => (
-                                    <div key={j} className="flex items-center gap-2">
-                                        <Skeleton className="h-3 w-3 rounded-full" />
-                                        <Skeleton className="h-3 w-4/5" />
+                                    <div key={j} className="flex items-center gap-1">
+                                        <Skeleton className="h-2.5 w-2.5 rounded-full shrink-0" />
+                                        <Skeleton className="h-2.5 w-4/5" />
                                     </div>
                                 ))}
                             </div>
-
-                            {/* Footer */}
-                            <div className="mt-auto pt-3 border-t border-border/40">
-                                <div className="flex justify-between items-center mb-3">
-                                    <Skeleton className="h-4 w-20 rounded-md" />
-                                    <Skeleton className="h-3 w-16" />
+                            <div className="mt-auto pt-2 border-t border-border/40">
+                                <div className="flex justify-between items-center mb-2">
+                                    <Skeleton className="h-3 w-16 rounded" />
+                                    <Skeleton className="h-2.5 w-12" />
                                 </div>
-                                <Skeleton className="h-9 w-full rounded-lg" />
+                                <Skeleton className="h-8 w-full rounded-md" />
                             </div>
                         </div>
                     ))}
@@ -115,47 +99,50 @@ export default function ProductsPage() {
     }
 
     return (
-        <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-
-            {/* Filter & Search */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between max-w-7xl mx-auto w-full bg-card/50 p-4 rounded-xl border border-border/50 backdrop-blur-sm sticky top-16 z-30 transition-all">
-                <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar items-center">
+        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+            <div className="flex flex-col md:flex-row gap-3 items-center justify-between max-w-7xl mx-auto w-full bg-card/50 p-3 rounded-lg border border-border/50 backdrop-blur-sm sticky top-16 z-30 transition-all">
+                <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 no-scrollbar items-center">
                     {filters.map((filter) => (
                         <Button
                             key={filter}
                             variant={activeFilter === filter ? "default" : "ghost"}
                             size="sm"
                             onClick={() => setActiveFilter(filter)}
-                            className="whitespace-nowrap rounded-full px-4 font-medium"
+                            className="whitespace-nowrap rounded-full px-3 h-7 text-[11px] font-medium"
                         >
                             {filter}
                         </Button>
                     ))}
                 </div>
-                <div className="relative w-full md:w-72">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <div className="relative w-full md:w-56">
+                    <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
                         placeholder="Cari produk..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors rounded-full"
+                        className="pl-8 h-8 text-[12px] bg-background/50 border-border/50 focus:bg-background transition-colors rounded-full"
                     />
                 </div>
             </div>
 
-            {/* Product Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-7xl mx-auto w-full">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full">
                 {filteredProducts.length > 0 ? (
-                    filteredProducts.map((product) => {
+                    filteredProducts.map((product: any) => {
                         const isFeatured = product.popular
                         const isSoldOut = product.stock === 0
                         const price = parseFloat(product.price)
 
                         return (
-                            <div key={product.id} className={`relative flex flex-col p-4 md:p-5 rounded-xl border transition-all duration-300 ${isFeatured && !isSoldOut ? 'border-primary/50 shadow-2xl z-10 bg-gradient-to-b from-background to-primary/5' : ''} ${isSoldOut ? 'border-border/50 bg-muted/20' : 'border-border/50 hover:bg-muted/30 hover:border-border'}`}>
+                            <div
+                                key={product.id}
+                                className={`relative flex flex-col p-3 rounded-lg border transition-all duration-300 
+                                    ${isFeatured && !isSoldOut ? 'border-primary/50 shadow-xl z-10 bg-gradient-to-b from-background to-primary/5' : ''} 
+                                    ${isSoldOut ? 'border-border/30 bg-muted/10 opacity-60 grayscale-[0.3]' : 'border-border/50 hover:bg-muted/30 hover:border-border'}
+                                `}
+                            >
                                 {isFeatured && !isSoldOut && (
                                     <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-[50%] w-full flex justify-center">
-                                        <Badge className="bg-primary text-primary-foreground font-bold text-[10px] uppercase px-3 py-0.5 rounded-full shadow-lg whitespace-nowrap border-0">
+                                        <Badge className="bg-primary text-primary-foreground font-bold text-[9px] uppercase px-2 py-0.5 rounded-full shadow-md whitespace-nowrap border-0">
                                             {product.badge}
                                         </Badge>
                                     </div>
@@ -163,22 +150,20 @@ export default function ProductsPage() {
 
                                 {isSoldOut && (
                                     <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-[50%] w-full flex justify-center z-20">
-                                        <Badge variant="secondary" className="font-bold text-[10px] uppercase px-4 py-0.5 rounded-full shadow-lg whitespace-nowrap border-0">
+                                        <Badge variant="secondary" className="font-bold text-[9px] uppercase px-3 py-0.5 rounded-full shadow-md whitespace-nowrap border-0">
                                             HABIS
                                         </Badge>
                                     </div>
                                 )}
 
-                                <div className="mb-2 md:mb-3">
-                                    <h3 className="text-sm md:text-lg font-bold text-foreground">{product.name}</h3>
+                                <h3 className="text-[13px] font-bold text-foreground leading-tight mb-1.5">{product.name}</h3>
+
+                                <div className="mb-2 flex flex-row items-baseline gap-1">
+                                    <span className="text-[16px] font-bold text-foreground tracking-tight">{formatRupiah(price)}</span>
+                                    <span className="text-muted-foreground text-[9px] font-medium">/ {product.durationDays}D</span>
                                 </div>
 
-                                <div className="mb-3 md:mb-4 flex flex-row items-baseline gap-1">
-                                    <span className="text-lg md:text-2xl font-bold text-foreground tracking-tighter">{formatRupiah(price)}</span>
-                                    <span className="text-muted-foreground text-[8px] md:text-[10px] font-medium">/ {product.durationDays} Hari</span>
-                                </div>
-
-                                <ul className="mb-3 md:mb-5 space-y-1.5 md:space-y-2 flex-1">
+                                <ul className="mb-2.5 space-y-1 flex-1">
                                     {(Array.isArray(product.features) ? product.features : [])
                                         .map((feature: any, i: number) => {
                                             const label = typeof feature === 'string' ? feature : feature.label;
@@ -190,48 +175,62 @@ export default function ProductsPage() {
                                             else if (iconType === 'os') Icon = Smartphone;
                                             else if (iconType === 'storage') Icon = HardDrive;
                                             else if (iconType === 'bit') Icon = Layers;
+                                            else if (iconType === 'globe') Icon = Globe;
 
-                                            // Fallback heuristic
                                             if (label.toLowerCase().includes('cpu')) Icon = Cpu;
 
                                             return (
-                                                <li key={i} className="flex items-start text-[9px] md:text-xs text-foreground/90 font-medium leading-tight">
-                                                    <Icon className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-primary mr-1.5 shrink-0 mt-0.5" />
-                                                    <span className="truncate md:whitespace-normal">{label}</span>
+                                                <li key={i} className="flex items-center text-[10px] text-foreground/80 font-medium">
+                                                    <Icon className="h-2.5 w-2.5 text-primary mr-1 shrink-0" />
+                                                    <span className="line-clamp-1">{label}</span>
                                                 </li>
                                             )
                                         })}
                                 </ul>
 
-                                {/* Rating, Sold & Stock Indicator */}
-                                <div className="mt-auto pt-2 md:pt-3 border-t border-border/40">
-                                    <div className="flex items-center justify-between mb-2 md:mb-3 text-[8px] md:text-[10px]">
-                                        <div className="flex items-center gap-1.5 text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-md">
-                                            <div className="flex items-center text-amber-500 font-bold">
-                                                <Star className="w-2.5 h-2.5 md:w-3 md:h-3 fill-current mr-0.5" />
-                                                {product.rating}
-                                            </div>
-                                            <div className="w-px h-2 bg-border" />
-                                            <span>{product.sold?.toLocaleString()} Terjual</span>
+                                <div className="mt-auto pt-2 border-t border-border/40">
+                                    <div className="flex items-center justify-between mb-2 text-[9px]">
+                                        <div className="flex items-center gap-1 text-muted-foreground bg-muted/50 px-1 py-0.5 rounded">
+                                            {product.reviewCount > 0 ? (
+                                                <div className="flex items-center text-amber-500 font-bold">
+                                                    <Star className="w-2.5 h-2.5 fill-current mr-0.5" />
+                                                    {product.rating}
+                                                    <span className="text-[8px] text-muted-foreground font-normal ml-0.5">({product.reviewCount})</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[8px] text-muted-foreground font-normal">Belum ada ulasan</span>
+                                            )}
+                                            <span className="text-border">|</span>
+                                            <span>{product.sold?.toLocaleString()} Sold</span>
                                         </div>
-
-                                        <div className="text-muted-foreground font-medium">
+                                        <span className={`font-medium ${isSoldOut ? 'text-red-500' : 'text-muted-foreground'}`}>
                                             {product.stock === 0 ? "Habis" : `Stok: ${product.stock}`}
-                                        </div>
+                                        </span>
                                     </div>
 
-                                    <Button
-                                        asChild
-                                        size="sm"
-                                        variant={isFeatured ? "default" : "outline"}
-                                        disabled={isSoldOut}
-                                        className={`w-full h-8 md:h-9 rounded-lg font-bold tracking-wide text-[10px] md:text-xs shadow-sm ${isFeatured ? 'shadow-primary/25' : ''}`}
-                                    >
-                                        <a href={isSoldOut ? "#" : `/checkout?product=${product.id}`}>
-                                            <ShoppingCart className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1.5" />
-                                            {isSoldOut ? "Stok Habis" : "Beli Sekarang"}
-                                        </a>
-                                    </Button>
+                                    {isSoldOut ? (
+                                        <Button
+                                            disabled
+                                            size="sm"
+                                            variant="secondary"
+                                            className="w-full h-8 rounded-md font-semibold text-[10px] opacity-100"
+                                        >
+                                            <ShoppingCart className="w-3 h-3 mr-1" />
+                                            Stok Habis
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant={isFeatured ? "default" : "outline"}
+                                            className={`w-full h-8 rounded-md font-semibold text-[10px] ${isFeatured ? 'shadow-sm shadow-primary/25' : ''}`}
+                                        >
+                                            <a href={`/checkout?product=${product.id}`}>
+                                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                                Beli Sekarang
+                                            </a>
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         )

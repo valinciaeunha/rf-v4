@@ -6,8 +6,10 @@ import {
     LogOut,
     Bell,
     User,
+    Wallet,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
+import Link from "next/link"
 
 import {
     Avatar,
@@ -52,6 +54,7 @@ export function NavUser({
                         <SidebarMenuButton
                             size="lg"
                             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                            suppressHydrationWarning
                         >
                             <Avatar className="h-8 w-8 rounded-lg">
                                 <AvatarImage src={user.avatar} alt={user.name} />
@@ -92,17 +95,17 @@ export function NavUser({
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>
-                            <DropdownMenuItem>
-                                <User className="mr-2 h-4 w-4" />
-                                <AccountMenuItem />
+                            <DropdownMenuItem asChild>
+                                <Link href="/profile" className="flex items-center w-full cursor-pointer">
+                                    <User className="mr-2 h-4 w-4" />
+                                    Akun
+                                </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <CreditCard className="mr-2 h-4 w-4" />
-                                Billing
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <Bell className="mr-2 h-4 w-4" />
-                                Notifications
+                            <DropdownMenuItem asChild>
+                                <Link href="/billing" className="flex items-center w-full cursor-pointer">
+                                    <Wallet className="mr-2 h-4 w-4" />
+                                    Dompet
+                                </Link>
                             </DropdownMenuItem>
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
@@ -115,8 +118,4 @@ export function NavUser({
             </SidebarMenuItem>
         </SidebarMenu>
     )
-}
-
-function AccountMenuItem() {
-    return <span>Account</span>
 }

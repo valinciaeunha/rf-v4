@@ -1,8 +1,8 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { products, productSpecifications, stocks } from "@/lib/db/schema"
-import { eq, sql, desc, and } from "drizzle-orm"
+import { products, productSpecifications, stocks, reviews } from "@/lib/db/schema"
+import { eq, sql, and, inArray, avg, count } from "drizzle-orm"
 
 export interface ProductData {
     id: number
@@ -15,7 +15,8 @@ export interface ProductData {
     stock: number
     sold: number // Mock or calculate if possible
     image?: string // Derived or placeholder
-    rating: number // Mock
+    rating: number
+    reviewCount: number
     popular: boolean
     durationDays: number
 }
@@ -39,7 +40,7 @@ export async function getProducts() {
             .from(productSpecifications)
             .where(and(
                 eq(productSpecifications.isActive, true),
-                sql`${productSpecifications.productId} IN ${productIds}`
+                inArray(productSpecifications.productId, productIds)
             ))
             .orderBy(productSpecifications.displayOrder);
 
@@ -75,8 +76,21 @@ export async function getProducts() {
         const soldMap = new Map<number, number>();
         soldCounts.forEach(s => soldMap.set(s.productId, s.count));
 
+        // 5. Fetch ratings
+        const ratings = await db.select({
+            productId: reviews.productId,
+            avgRating: sql<number>`cast(avg(${reviews.rating}) as float)`,
+            count: sql<number>`cast(count(${reviews.id}) as int)`
+        })
+            .from(reviews)
+            .groupBy(reviews.productId);
+
+        const ratingMap = new Map<number, { avgRating: number; count: number }>();
+        ratings.forEach(r => ratingMap.set(r.productId, { avgRating: r.avgRating, count: r.count }));
+
         // 4. Transform to ProductData
         const formattedProducts: ProductData[] = allProducts.map(p => {
+            const r = ratingMap.get(p.id);
             return {
                 id: p.id,
                 productId: p.productId,
@@ -87,7 +101,8 @@ export async function getProducts() {
                 features: specsMap.get(p.id) || [],
                 stock: stockMap.get(p.id) || 0,
                 sold: soldMap.get(p.id) || 0,
-                rating: 5.0,
+                rating: r ? parseFloat(r.avgRating.toFixed(1)) : 5.0,
+                reviewCount: r ? r.count : 0,
                 popular: !!p.badge,
                 durationDays: p.expiredDays
             }
@@ -139,6 +154,14 @@ export async function getProductById(id: string | number) {
                 eq(stocks.status, 'sold')
             ));
 
+        // 5. Fetch rating
+        const ratingResult = await db.select({
+            avgRating: sql<number>`cast(avg(${reviews.rating}) as float)`,
+            count: sql<number>`cast(count(${reviews.id}) as int)`
+        })
+            .from(reviews)
+            .where(eq(reviews.productId, productId));
+
         const productData: ProductData = {
             id: product.id,
             productId: product.productId,
@@ -149,7 +172,8 @@ export async function getProductById(id: string | number) {
             features,
             stock: stockCount[0]?.count || 0,
             sold: soldCount[0]?.count || 0,
-            rating: 5.0,
+            rating: ratingResult[0]?.avgRating ? parseFloat(ratingResult[0].avgRating.toFixed(1)) : 5.0,
+            reviewCount: ratingResult[0]?.count || 0,
             popular: !!product.badge,
             durationDays: product.expiredDays
         };

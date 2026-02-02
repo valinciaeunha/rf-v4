@@ -1,0 +1,37 @@
+/*
+ * pgloader - Data Only Migration to public schema
+ * Use this after Drizzle schema already exists
+ * 
+ * Usage:
+ *   docker exec -it redfinger-pgloader pgloader /migration/migrate-data-only.load
+ */
+
+LOAD DATABASE
+    FROM mysql://root:rootpassword@mariadb:3306/redfing1_db
+    INTO postgresql://postgres:password@postgres:5432/redfinger_v4
+
+WITH data only,
+     truncate,
+     reset sequences,
+     batch rows = 5000,
+     prefetch rows = 5000,
+     workers = 4,
+     concurrency = 2
+
+SET maintenance_work_mem to '256MB',
+    work_mem to '32MB',
+    search_path to 'public'
+
+ALTER SCHEMA 'redfing1_db' RENAME TO 'public'
+
+CAST type datetime to timestamptz using zero-dates-to-null,
+     type date to date using zero-dates-to-null,
+     type timestamp to timestamptz using zero-dates-to-null
+
+INCLUDING ONLY TABLE NAMES MATCHING 
+    'users',
+    'products', 
+    'product_specifications',
+    'stocks',
+    'transactions', 
+    'deposits';

@@ -32,6 +32,7 @@ function VerifyPageContent() {
     useEffect(() => {
         const emailParam = searchParams.get("email")
         if (emailParam) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setEmail(emailParam)
         }
     }, [searchParams])
@@ -62,41 +63,44 @@ function VerifyPageContent() {
     }, [email])
 
     // Auto-verify if token is present in URL
-    useEffect(() => {
-        if (token) {
-            verifyEmail(token)
-        }
-    }, [token])
-
     const verifyEmail = async (verificationToken: string) => {
         setStatus("loading")
         try {
-            // Stub
+            // Stub simulation
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const _token = verificationToken
+            await new Promise(resolve => setTimeout(resolve, 1000))
             const result = { success: false, data: { message: "" }, error: "Backend pending" };
-            console.log("Verify stubbed");
+
             if (result.success) {
                 setStatus("success")
-                setMessage(result.data?.message || "Email berhasil diverifikasi!")
+                setMessage(result.data?.message || "Email verified successfully! You can now login.")
                 setTimeout(() => {
                     router.push("/login")
                 }, 3000)
             } else {
                 setStatus("error")
-                setMessage(result.error || "Verifikasi gagal")
+                setMessage(result.error || "Verification failed")
             }
-        } catch {
+        } catch (error) {
             setStatus("error")
-            setMessage("Terjadi kesalahan saat verifikasi")
+            setMessage("Something went wrong")
         }
     }
+
+    useEffect(() => {
+        if (token) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            verifyEmail(token)
+        }
+    }, [token])
 
     const handleResend = async () => {
         if (!email || !canResend) return
         setResendLoading(true)
         try {
-            // Stub
             const result = { success: false, data: { message: "" }, error: "Backend pending" };
-            console.log("Resend stubbed");
+
             if (result.success) {
                 setMessage(result.data?.message || "Link verifikasi telah dikirim ulang")
                 localStorage.setItem(`resend_cooldown_${email}`, Date.now().toString())

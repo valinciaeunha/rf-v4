@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+// import { useEffect } from "react";
+// import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation"; // Keep imports if needed for types or future? No, lint complains.
+// Actually, if I comment out the variables, I should comment out imports too.
+
 // import { api } from "@/lib/api";
 
 export function AnalyticsTracker() {
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
+    // const pathname = usePathname();
+    // const searchParams = useSearchParams();
 
     // useEffect(() => {
     //     const trackVisit = async () => {

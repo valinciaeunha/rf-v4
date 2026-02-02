@@ -2,9 +2,9 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Check, ArrowRight, Minus, Plus, Wallet, Smartphone, QrCode, Loader2 } from "lucide-react"
+import { Check, ArrowRight, Minus, Plus, Wallet, Smartphone, QrCode, Cpu, MemoryStick, HardDrive, Layers, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 // import { getProductById, Product } from "@/lib/api/products"
@@ -137,12 +137,25 @@ function CheckoutContent() {
                             </div>
                             <div className="mt-2.5 bg-muted/20 p-2 rounded-md border border-border/30">
                                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                                    {product.features.slice(0, 4).map((feature: any, i: number) => (
-                                        <li key={i} className="flex items-center text-[10px] text-muted-foreground">
-                                            <Check className="h-2.5 w-2.5 text-primary mr-1.5 shrink-0" />
-                                            <span className="truncate">{typeof feature === 'string' ? feature : feature.label}</span>
-                                        </li>
-                                    ))}
+                                    {product.features.slice(0, 4).map((feature: any, i: number) => {
+                                        const label = typeof feature === 'string' ? feature : feature.label;
+                                        const iconType = typeof feature === 'string' ? 'check' : feature.icon;
+
+                                        let Icon = Check;
+                                        if (iconType === 'cpu' || iconType === 'chipset') Icon = Cpu;
+                                        else if (iconType === 'ram') Icon = MemoryStick;
+                                        else if (iconType === 'os') Icon = Smartphone;
+                                        else if (iconType === 'storage') Icon = HardDrive;
+                                        else if (iconType === 'bit') Icon = Layers;
+                                        else if (iconType === 'globe') Icon = Globe;
+
+                                        return (
+                                            <li key={i} className="flex items-center text-[10px] text-muted-foreground">
+                                                <Icon className="h-2.5 w-2.5 text-primary mr-1.5 shrink-0" />
+                                                <span className="truncate">{label}</span>
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </div>
                         </CardContent>
@@ -192,14 +205,17 @@ function CheckoutContent() {
                         <CardContent className="p-3 pt-0">
                             <div className="grid grid-cols-2 gap-2">
                                 <Button
-                                    variant={paymentMethod === "qris" ? "default" : "outline"}
-                                    className={`h-auto py-2.5 justify-start px-3 ${paymentMethod === "qris" ? "border-primary shadow-sm" : "border-border/50 hover:bg-muted/50"}`}
-                                    onClick={() => setPaymentMethod("qris")}
+                                    variant={paymentMethod === "qris_realtime" ? "default" : "outline"}
+                                    className={`h-auto py-2.5 justify-start px-3 ${paymentMethod === "qris_realtime" ? "border-primary shadow-sm" : "border-border/50 hover:bg-muted/50"}`}
+                                    onClick={() => setPaymentMethod("qris_realtime")}
                                 >
                                     <QrCode className="mr-2.5 h-4 w-4 shrink-0" />
                                     <div className="flex flex-col items-start truncate">
-                                        <span className="font-bold text-xs">QRIS</span>
-                                        <span className="text-[10px] opacity-80 truncate hidden md:block">Scan & Bayar Instan</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-xs">QRIS Realtime</span>
+                                            <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">INSTAN</Badge>
+                                        </div>
+                                        <span className="text-[10px] opacity-80 truncate hidden md:block">Scan langsung lunas</span>
                                     </div>
                                 </Button>
                                 <Button

@@ -6,7 +6,7 @@ import { db } from '../src/lib/db';
 import { users } from '../src/lib/db/schema';
 import { sql } from 'drizzle-orm';
 
-const DUMP_FILE_PATH = 'c:/docker/next-js/redfinger-v4/redfing1_db (7).sql';
+const DUMP_FILE_PATH = 'c:/docker/next-js/redfinger-v4/redfing1_db (8).sql';
 
 async function migrate() {
     console.log('🚀 Starting migration...');

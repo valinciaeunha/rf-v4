@@ -73,7 +73,7 @@ export function SiteHeader() {
                             <Link href="/login">Login</Link>
                         </Button>
                         <Button asChild size="sm" className="bg-foreground hover:bg-foreground/90 text-background font-bold tracking-widest text-[10px] uppercase h-8 rounded-md px-4 shadow-sm">
-                            <Link href="/signup">Order Sekarang</Link>
+                            <Link href="/dashboard">Dashboard Area</Link>
                         </Button>
                     </nav>
                 </div>

@@ -1,9 +1,26 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const SESSION_SECRET = new TextEncoder().encode(
-    process.env.SESSION_SECRET || 'fallback-secret-change-in-production'
-);
+// SECURITY: Session secret MUST be set in environment
+// Minimum 32 characters for security
+// Uses lazy initialization to allow static analysis/build to complete
+let _sessionSecret: Uint8Array | null = null;
+
+function getSessionSecret(): Uint8Array {
+    if (_sessionSecret) return _sessionSecret;
+
+    const rawSecret = process.env.SESSION_SECRET;
+    if (!rawSecret) {
+        throw new Error('FATAL: SESSION_SECRET environment variable is not set. Application cannot start securely.');
+    }
+    if (rawSecret.length < 32) {
+        throw new Error('FATAL: SESSION_SECRET must be at least 32 characters long for security.');
+    }
+
+    _sessionSecret = new TextEncoder().encode(rawSecret);
+    return _sessionSecret;
+}
+
 const SESSION_COOKIE_NAME = 'session';
 const SESSION_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
@@ -22,7 +39,7 @@ export async function createSession(payload: SessionPayload): Promise<void> {
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime(`${SESSION_DURATION}s`)
-        .sign(SESSION_SECRET);
+        .sign(getSessionSecret());
 
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, token, {
@@ -44,7 +61,7 @@ export async function getSession(): Promise<SessionPayload | null> {
     if (!token) return null;
 
     try {
-        const { payload } = await jwtVerify(token, SESSION_SECRET);
+        const { payload } = await jwtVerify(token, getSessionSecret());
         return payload as unknown as SessionPayload;
     } catch {
         return null;

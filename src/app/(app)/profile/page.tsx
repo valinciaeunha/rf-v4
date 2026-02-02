@@ -15,9 +15,16 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Camera, User, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-// import { getProfile, updateProfile, updatePassword } from "@/lib/api/user"
-// import { User as UserType } from "@/lib/api/auth"
-type UserType = any; // Stub definition
+import { getProfile, updateProfile, updatePassword } from "@/lib/actions/user"
+import { Skeleton } from "@/components/ui/skeleton"
+
+interface UserType {
+    id: number
+    username: string
+    email: string
+    whatsappNumber: string | null
+    avatarUrl: string | null
+}
 
 export default function ProfilePage() {
     const [user, setUser] = useState<UserType | null>(null)
@@ -43,14 +50,13 @@ export default function ProfilePage() {
 
     const loadProfile = async () => {
         try {
-            // Stub
-            const res = { success: false, data: null, error: "Backend pending" };
+            const res = await getProfile()
             if (res.success && res.data) {
-                // setUser(res.data)
-                // setFormData({
-                //     username: res.data.username || "",
-                //     whatsappNumber: res.data.whatsappNumber || "",
-                // })
+                setUser(res.data as UserType)
+                setFormData({
+                    username: res.data.username || "",
+                    whatsappNumber: res.data.whatsappNumber || "",
+                })
             } else {
                 toast.error(res.error || "Gagal memuat profil")
             }
@@ -64,11 +70,10 @@ export default function ProfilePage() {
     const handleProfileUpdate = async () => {
         setUpdating(true)
         try {
-            // Stub
-            const res = { success: false, error: "Backend pending", data: null };
-            if (res.success) {
+            const res = await updateProfile(formData)
+            if (res.success && res.data) {
                 toast.success("Profil berhasil diperbarui")
-                if (res.data) setUser(res.data as UserType)
+                setUser(res.data as UserType)
             } else {
                 toast.error(res.error || "Gagal memperbarui profil")
             }
@@ -91,8 +96,7 @@ export default function ProfilePage() {
 
         setPassUpdating(true)
         try {
-            // Stub
-            const res = { success: false, error: "Backend pending" };
+            const res = await updatePassword(passData.currentPassword, passData.newPassword)
             if (res.success) {
                 toast.success("Password berhasil diubah")
                 setPassData({
@@ -112,8 +116,70 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex h-full items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
+                <div className="grid gap-6">
+                    {/* Personal Info Skeleton */}
+                    <Card>
+                        <CardHeader>
+                            <Skeleton className="h-6 w-40 mb-2" />
+                            <Skeleton className="h-4 w-64" />
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="flex flex-col gap-6 md:flex-row">
+                                <div className="flex flex-col items-center gap-4">
+                                    <Skeleton className="h-32 w-32 rounded-full" />
+                                    <Skeleton className="h-4 w-40" />
+                                </div>
+                                <div className="flex-1 space-y-4">
+                                    <div className="grid gap-2">
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-10 w-full" />
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <div className="grid gap-2">
+                                            <Skeleton className="h-4 w-16" />
+                                            <Skeleton className="h-10 w-full" />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Skeleton className="h-4 w-32" />
+                                            <Skeleton className="h-10 w-full" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="border-t px-6 py-4">
+                            <Skeleton className="h-10 w-40" />
+                        </CardFooter>
+                    </Card>
+
+                    {/* Security Skeleton */}
+                    <Card>
+                        <CardHeader>
+                            <Skeleton className="h-6 w-32 mb-2" />
+                            <Skeleton className="h-4 w-56" />
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-2">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="border-t px-6 py-4">
+                            <Skeleton className="h-10 w-40" />
+                        </CardFooter>
+                    </Card>
+                </div>
             </div>
         )
     }

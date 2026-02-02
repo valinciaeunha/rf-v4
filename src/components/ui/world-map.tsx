@@ -22,6 +22,8 @@ export function WorldMap({
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
+     
+     
     setMounted(true);
   }, []);
 
@@ -32,9 +34,10 @@ export function WorldMap({
   const effectiveLineColor = lineColor || (resolvedTheme === "dark" ? "#ffffff" : "#000000");
 
   // Memoize SVG map generation based on theme
-  const svgMap = useMemo(() => {
+  const svgMap: string = useMemo(() => {
     const isDark = resolvedTheme === "dark";
-    return map.getSVG({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (map as any).getSVG({
       radius: 0.22,
       color: isDark ? "#FFFFFF40" : "#00000040",
       shape: "circle",

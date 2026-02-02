@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  web:
+    container_name: redfinger-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Format: postgresql://USER:PASSWORD@HOST:PORT/DB_NAME
+      - DATABASE_URL=postgresql://foxzy911_rf:valincia911@postgres:5432/foxzy911_db
+      - REDIS_URL=redis://redis:6379
+      - ENABLE_FILE_LOGGING=true
+      # Jangan lupa set NEXT_PUBLIC_APP_URL sesuai domain/IP VPS kamu nanti
+      # - NEXT_PUBLIC_APP_URL=https://yourdomain.com 
+    volumes:
+      - ./storage/logs:/app/storage/logs
+      - ./public/uploads:/app/public/uploads
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - redfinger-net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: redfinger-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: foxzy911_rf
+      POSTGRES_PASSWORD: valincia911
+      POSTGRES_DB: foxzy911_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Security: Ports section removed so DB is NOT accessible from outside VPS
+    networks:
+      - redfinger-net
+
+  redis:
+    image: redis:alpine
+    container_name: redfinger-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - redfinger-net
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  redfinger-net:
+    driver: bridge

@@ -18,6 +18,7 @@ import {
     Zap,
     Wallet,
     Headphones,
+    Shield,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -76,6 +77,52 @@ const data = {
     ],
 }
 
+// Define admin nav items
+const adminNav = [
+    {
+        title: "Administrator",
+        url: "#",
+        icon: Shield,
+        items: [
+            {
+                title: "Users",
+                url: "/admin/users",
+            },
+            {
+                title: "Produk",
+                url: "/admin/products",
+            },
+            {
+                title: "Transaksi",
+                url: "/admin/transactions",
+            },
+        ],
+    },
+]
+
+// Define developer-only nav items
+const developerNav = [
+    {
+        title: "Developer",
+        url: "#",
+        icon: Zap,
+        items: [
+            {
+                title: "Audit Logs",
+                url: "/developer/audit-logs",
+            },
+            {
+                title: "Backup",
+                url: "/developer/backup",
+            },
+            {
+                title: "Discord Bot",
+                url: "/developer/discord-bot",
+            },
+        ],
+    },
+]
+
 // Define user type locally or import it
 interface UserProp {
     name: string
@@ -95,6 +142,18 @@ export function AppSidebar({ user: initialUser, ...props }: React.ComponentProps
         name: "Guest",
         email: "",
         avatar: "",
+        role: "user",
+    }
+
+    // Filter/Combine nav items based on role
+    const navItems = [...data.navMain]
+    if (user.role === "admin" || user.role === "developer") {
+        // @ts-ignore - Combine types loosely
+        navItems.push(...adminNav)
+    }
+    if (user.role === "developer") {
+        // @ts-ignore - Developer-only menu
+        navItems.push(...developerNav)
     }
 
     return (
@@ -117,7 +176,8 @@ export function AppSidebar({ user: initialUser, ...props }: React.ComponentProps
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <NavMain items={data.navMain} />
+                {/* @ts-ignore - NavMain accepts updated Item type */}
+                <NavMain items={navItems} />
             </SidebarContent>
             <SidebarFooter>
                 <NavUser user={user} />

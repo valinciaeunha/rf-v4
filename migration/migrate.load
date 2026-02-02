@@ -1,0 +1,52 @@
+/*
+ * pgloader configuration for MariaDB to PostgreSQL migration
+ * 
+ * Usage:
+ *   docker exec -it redfinger-pgloader pgloader /migration/migrate.load
+ */
+
+LOAD DATABASE
+    FROM mysql://root:rootpassword@mariadb:3306/redfing1_db
+    INTO postgresql://postgres:password@postgres:5432/redfinger_v4
+
+WITH include drop, 
+     create tables, 
+     create indexes,
+     reset sequences,
+     batch rows = 10000,
+     prefetch rows = 10000,
+     workers = 4,
+     concurrency = 2
+
+SET maintenance_work_mem to '512MB',
+    work_mem to '64MB'
+
+CAST type int with extra auto_increment to serial,
+     type bigint with extra auto_increment to bigserial,
+     type int to integer drop typemod,
+     type bigint to bigint drop typemod,
+     type tinyint to smallint drop typemod,
+     type smallint to smallint drop typemod,
+     type mediumint to integer drop typemod,
+     type decimal to numeric drop typemod,
+     type char to varchar drop typemod,
+     type varchar to text drop typemod,
+     type tinytext to text,
+     type text to text,
+     type mediumtext to text,
+     type longtext to text,
+     type datetime to timestamptz using zero-dates-to-null,
+     type date to date using zero-dates-to-null,
+     type timestamp to timestamptz using zero-dates-to-null,
+     type enum to text
+
+EXCLUDING TABLE NAMES MATCHING 
+    'cache', 
+    'sessions', 
+    'password_resets', 
+    'password_reset_tokens',
+    'failed_jobs', 
+    'migrations',
+    'personal_access_tokens',
+    'jobs',
+    'job_batches';

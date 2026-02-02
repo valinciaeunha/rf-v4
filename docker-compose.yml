@@ -14,6 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - redfinger-net
+    restart: always
 
   redis:
     image: redis:alpine
@@ -24,23 +25,11 @@ services:
       - redis_data:/data
     networks:
       - redfinger-net
-
-  redis-insight:
-    image: redis/redisinsight:latest
-    container_name: redfinger-redis-ui
-    ports:
-      - "5540:5540"
-    volumes:
-      - redisinsight_data:/data
-    depends_on:
-      - redis
-    networks:
-      - redfinger-net
+    restart: always
 
 volumes:
   postgres_data:
   redis_data:
-  redisinsight_data:
 
 networks:
   redfinger-net:

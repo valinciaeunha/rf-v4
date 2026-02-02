@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { ArrowLeft, CheckCircle2, Lock, Smartphone, Loader2 } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Lock, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { getProductById, ProductData } from "@/lib/actions/products"
 import { getSessionUser } from "@/lib/actions/auth"
+import { createProductOrder } from "@/lib/actions/orders"
 import { toast } from "sonner"
 
 function CheckoutSummaryContent() {
@@ -19,7 +20,7 @@ function CheckoutSummaryContent() {
 
     const productId = searchParams.get("product")
     const qty = parseInt(searchParams.get("qty") || "1")
-    const paymentMethod = searchParams.get("payment") || "qris"
+    const paymentMethod = searchParams.get("payment") || "qris_realtime"
 
     const [product, setProduct] = useState<ProductData | null>(null)
     const [loading, setLoading] = useState(true)
@@ -86,7 +87,16 @@ function CheckoutSummaryContent() {
 
     const price = parseFloat(product.price)
     const subtotal = price * qty
-    const total = subtotal // No PPN
+
+    // Calculate Admin Fee
+    let adminFee = 0
+    if (paymentMethod.includes('qris')) {
+        // Fee QRIS Realtime 1.70% (Dibebankan ke pelanggan)
+        // Kita bulatkan ke atas
+        adminFee = Math.ceil(subtotal * 0.017)
+    }
+
+    const total = subtotal + adminFee
 
     const handlePay = async () => {
         if (!email || !whatsapp) {
@@ -94,15 +104,41 @@ function CheckoutSummaryContent() {
             return
         }
 
+        if (!product) {
+            toast.error("Produk tidak ditemukan")
+            return
+        }
+
         setIsSubmitting(true)
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        try {
+            // Create product order - will insert to transactions table
+            const res = await createProductOrder({
+                productId: product.id,
+                quantity: qty,
+                paymentMethod: paymentMethod as any,
+                email,
+                whatsappNumber: whatsapp,
+            })
 
-        // Mock Transaction ID
-        const trxId = `TRX-${Date.now()}`
-
-        router.push(`/payment/${trxId}?amount=${total}&method=${paymentMethod}`)
+            if (res.success && res.data) {
+                if (res.data.fulfilled) {
+                    // Balance payment - redirect to success page
+                    toast.success("Pembelian berhasil!")
+                    router.push(`/payment/success?id=${res.data.orderId}`)
+                } else {
+                    // QRIS/External payment - redirect to QR payment page
+                    router.push(`/payment/${res.data.orderId}`)
+                }
+            } else {
+                toast.error(res.error || "Gagal membuat transaksi")
+                setIsSubmitting(false)
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error("Terjadi kesalahan sistem")
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -181,8 +217,8 @@ function CheckoutSummaryContent() {
                             <span>{formatRupiah(subtotal)}</span>
                         </div>
                         <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
-                            <span>Biaya Layanan</span>
-                            <span>Rp 0</span>
+                            <span>Biaya Layanan {paymentMethod.includes('qris') ? '(QRIS 1.7%)' : ''}</span>
+                            <span>{formatRupiah(adminFee)}</span>
                         </div>
                         <Separator className="my-1 bg-border/50" />
                         <div className="flex justify-between font-bold text-sm md:text-base pt-0.5">
@@ -197,7 +233,7 @@ function CheckoutSummaryContent() {
                         onClick={handlePay}
                         disabled={isSubmitting}
                     >
-                        {isSubmitting ? "Memproses..." : `Bayar Sekarang - ${paymentMethod.toUpperCase()}`}
+                        {isSubmitting ? "Memproses..." : `Bayar Sekarang - ${paymentMethod.replace(/_/g, " ").toUpperCase()}`}
                     </Button>
                     <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
                         <CheckCircle2 className="h-2.5 w-2.5 text-primary" />

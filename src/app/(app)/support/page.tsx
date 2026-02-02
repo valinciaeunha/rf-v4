@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
+    CardFooter,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +23,8 @@ import {
 } from "@/components/ui/dialog"
 import { Mail, MessageCircle, BookOpen } from "lucide-react"
 import Link from "next/link"
-import supportData from "./data.json"
+import { supportData } from "./data"
+import { getProfile } from "@/lib/actions/user"
 
 export default function SupportPage() {
     // Initialize state with data from data.json
@@ -32,6 +34,21 @@ export default function SupportPage() {
     const [message, setMessage] = useState("")
     const [txId, setTxId] = useState("")
     const [isOpen, setIsOpen] = useState(false)
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await getProfile()
+                if (res.success && res.data) {
+                    if (res.data.username) setName(res.data.username)
+                    if (res.data.email) setEmail(res.data.email)
+                }
+            } catch (error) {
+                console.error("Failed to fetch user profile for support", error)
+            }
+        }
+        fetchUser()
+    }, [])
 
     // Determine if the selected category requires a Transaction ID
     const selectedCategory = supportData.categories.find(c => c.id === categoryId) || supportData.categories[0]
@@ -72,7 +89,7 @@ export default function SupportPage() {
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 items-start">
 
                 {/* WhatsApp Support with Dynamic Ticket Popup */}
                 <Card>
@@ -85,10 +102,13 @@ export default function SupportPage() {
                             Chat langsung dengan tim support kami untuk bantuan cepat.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 space-y-2">
+                        {/* Moved to Footer */}
+                    </CardContent>
+                    <CardFooter className="p-6 pt-0">
                         <Dialog open={isOpen} onOpenChange={setIsOpen}>
                             <DialogTrigger asChild>
-                                <Button className="w-full">
+                                <Button variant="outline" className="w-full shadow-sm">
                                     Chat via WhatsApp
                                 </Button>
                             </DialogTrigger>
@@ -171,7 +191,7 @@ export default function SupportPage() {
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
-                    </CardContent>
+                    </CardFooter>
                 </Card>
 
                 <Card>
@@ -184,11 +204,14 @@ export default function SupportPage() {
                             Kirim email untuk pertanyaan detail atau kendala.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Button variant="outline" className="w-full">
+                    <CardContent className="flex-1">
+                        {/* Content spacer */}
+                    </CardContent>
+                    <CardFooter className="p-6 pt-0">
+                        <Button variant="outline" className="w-full shadow-sm">
                             Kirim Email
                         </Button>
-                    </CardContent>
+                    </CardFooter>
                 </Card>
                 <Card>
                     <CardHeader>
@@ -200,11 +223,14 @@ export default function SupportPage() {
                             Baca panduan dan tutorial kami untuk menemukan jawaban.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Button variant="secondary" className="w-full">
+                    <CardContent className="flex-1">
+                        {/* Content spacer */}
+                    </CardContent>
+                    <CardFooter className="p-6 pt-0">
+                        <Button variant="outline" className="w-full shadow-sm">
                             Lihat Dokumentasi
                         </Button>
-                    </CardContent>
+                    </CardFooter>
                 </Card>
             </div>
 
