@@ -27,15 +27,18 @@ export class NotificationSystem {
 
     /**
      * Send Success Log to Public (Censored) and Private (Full) Channels
+     * Returns true if at least one notification was sent successfully
      */
-    static async sendSuccessLog(client: Client, data: SUCCESS_LOG_DATA, guildId?: string) {
+    static async sendSuccessLog(client: Client, data: SUCCESS_LOG_DATA, guildId?: string): Promise<boolean> {
+        let success = false
+
         try {
             // Fetch Settings (no guildId filter - supports multi-server channels)
             const settings = await db.query.botSettings.findFirst()
 
             if (!settings) {
                 console.warn('[NotificationSystem] No bot settings found in database')
-                return
+                return false
             }
 
             const publicChannels = settings.publicLogChannelId ? settings.publicLogChannelId.split(',').map(id => id.trim()) : []
@@ -79,7 +82,10 @@ export class NotificationSystem {
                 const channel = await client.channels.fetch(channelId).catch(() => null)
                 if (channel && channel.isTextBased() && 'send' in channel) {
                     await (channel as any).send({ embeds: [createEmbed(true)] })
-                        .then(() => console.log(`[NotificationSystem] ✅ Sent public log to ${channelId}`))
+                        .then(() => {
+                            console.log(`[NotificationSystem] ✅ Sent public log to ${channelId}`)
+                            success = true
+                        })
                         .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed public log to ${channelId}:`, e.message))
                 } else {
                     console.warn(`[NotificationSystem] Channel ${channelId} not found or not text-based`)
@@ -128,7 +134,10 @@ export class NotificationSystem {
 
                     // Send (Max 10 embeds per message)
                     await (channel as any).send({ embeds: embeds.slice(0, 10) })
-                        .then(() => console.log(`[NotificationSystem] ✅ Sent private log to ${channelId}`))
+                        .then(() => {
+                            console.log(`[NotificationSystem] ✅ Sent private log to ${channelId}`)
+                            success = true
+                        })
                         .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed private log to ${channelId}:`, e.message))
                 } else {
                     console.warn(`[NotificationSystem] Private channel ${channelId} not found or not text-based`)
@@ -138,6 +147,8 @@ export class NotificationSystem {
         } catch (error) {
             console.error('[NotificationSystem] Public/Private Log Error:', error)
         }
+
+        return success
     }
 
     /**
@@ -175,5 +186,77 @@ export class NotificationSystem {
         } catch (error) {
             console.error('[NotificationSystem] Expired Log Error:', error)
         }
+    }
+
+    /**
+     * Send Deposit Success Log to Public & Private Channels
+     * Returns true if at least one notification was sent successfully
+     */
+    static async sendDepositSuccessLog(client: Client, data: {
+        user: any;
+        amount: number;
+        refId: string;
+        method: string;
+    }): Promise<boolean> {
+        let success = false
+
+        try {
+            const settings = await db.query.botSettings.findFirst()
+
+            if (!settings) {
+                console.warn('[NotificationSystem] No bot settings found for deposit log')
+                return false
+            }
+
+            const publicChannels = settings.publicLogChannelId ? settings.publicLogChannelId.split(',').map(id => id.trim()) : []
+            const privateChannels = settings.privateLogChannelId ? settings.privateLogChannelId.split(',').map(id => id.trim()) : []
+
+            const embed = new EmbedBuilder()
+                .setTitle('💰 Deposit Berhasil')
+                .setColor(BOT_CONFIG.color)
+                .setThumbnail(data.user?.displayAvatarURL?.() || null)
+                .addFields(
+                    { name: 'User', value: `${data.user} (${data.user.username || 'Guest'})`, inline: true },
+                    { name: 'Nominal', value: `Rp ${data.amount.toLocaleString('id-ID')}`, inline: true },
+                    { name: 'Metode', value: data.method || 'QRIS', inline: true },
+                    { name: 'Ref ID', value: `\`${data.refId}\``, inline: false },
+                    { name: 'Tanggal', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: false }
+                )
+                .setFooter({ text: 'Saldo berhasil ditambahkan!' })
+                .setTimestamp()
+
+            // Send to Public Channels
+            for (const channelId of publicChannels) {
+                if (!channelId) continue
+                const channel = await client.channels.fetch(channelId).catch(() => null)
+                if (channel && channel.isTextBased() && 'send' in channel) {
+                    await (channel as any).send({ embeds: [embed] })
+                        .then(() => {
+                            console.log(`[NotificationSystem] ✅ Sent deposit log to public ${channelId}`)
+                            success = true
+                        })
+                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed deposit log to ${channelId}:`, e.message))
+                }
+            }
+
+            // Send to Private Channels
+            for (const channelId of privateChannels) {
+                if (!channelId) continue
+                const channel = await client.channels.fetch(channelId).catch(() => null)
+                if (channel && channel.isTextBased() && 'send' in channel) {
+                    await (channel as any).send({ embeds: [embed] })
+                        .then(() => {
+                            console.log(`[NotificationSystem] ✅ Sent deposit log to private ${channelId}`)
+                            success = true
+                        })
+                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed deposit log to ${channelId}:`, e.message))
+                }
+            }
+
+        } catch (error) {
+            console.error('[NotificationSystem] Deposit Log Error:', error)
+        }
+
+        return success
     }
 }

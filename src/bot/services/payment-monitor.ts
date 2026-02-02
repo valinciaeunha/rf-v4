@@ -284,7 +284,7 @@ async function checkCompletedTransactions(client: ExtendedClient) {
             }
         }
 
-        await NotificationSystem.sendSuccessLog(client, {
+        const notificationSent = await NotificationSystem.sendSuccessLog(client, {
             user: discordUser || { username: 'Guest/Web User', displayAvatarURL: () => null, toString: () => 'Guest' },
             productName: tx.productName || 'Unknown Product',
             quantity: 1,
@@ -331,10 +331,15 @@ async function checkCompletedTransactions(client: ExtendedClient) {
             console.error(`[Payment Monitor] DM Logic Error for ${tx.orderId}:`, err)
         }
 
-        // --- 3. Mark as notified ---
-        await db.update(transactions)
-            .set({ isNotified: true })
-            .where(eq(transactions.id, tx.id))
+        // --- 3. Mark as notified ONLY if channel notification was successful ---
+        if (notificationSent) {
+            await db.update(transactions)
+                .set({ isNotified: true })
+                .where(eq(transactions.id, tx.id))
+            console.log(`[Payment Monitor] ✅ Order ${tx.orderId} marked as notified`)
+        } else {
+            console.warn(`[Payment Monitor] ⚠️ Order ${tx.orderId} notification failed, will retry next cycle`)
+        }
     }
 }
 
@@ -407,39 +412,80 @@ async function syncPendingDeposits(client: ExtendedClient) {
 
             if (result.updated && result.status === 'success') {
                 console.log(`[Payment Monitor] Deposit ${deposit.refId} SUCCESS via sync.`)
-
-                // Notify User if Source is Bot (or even Web if we can map userId -> discordId)
-                if (deposit.source === 'bot' || deposit.userId) {
-                    await notifyDepositSuccess(client, deposit.userId, deposit.amount, deposit.refId!)
-                }
+                // Don't send notification here - let checkCompletedDeposits handle it
             }
         }
+
+        // Check for completed deposits that need notification
+        await checkCompletedDeposits(client)
+
     } catch (error) {
         console.error('[Payment Monitor] Sync Pending Deposits Error:', error)
     }
 }
 
-async function notifyDepositSuccess(client: ExtendedClient, userId: number | null, amount: string, refId: string) {
-    if (!userId) return
-
+async function checkCompletedDeposits(client: ExtendedClient) {
     try {
-        const { users } = await import('@/lib/db/schema')
-        // Get discord ID
-        const user = await db.query.users.findFirst({
-            where: eq(users.id, userId),
-            columns: { discordId: true }
-        })
+        const { deposits, users } = await import('@/lib/db/schema')
+        const { NotificationSystem } = await import('./NotificationSystem')
 
-        if (user && user.discordId) {
-            const discordUser = await client.users.fetch(user.discordId).catch(() => null)
+        // Find success deposits that haven't been notified
+        const successDeposits = await db.select({
+            id: deposits.id,
+            userId: deposits.userId,
+            amount: deposits.amount,
+            refId: deposits.refId,
+            paymentChannel: deposits.paymentChannel,
+            isNotified: deposits.isNotified
+        })
+            .from(deposits)
+            .where(and(
+                eq(deposits.status, 'success'),
+                eq(deposits.isNotified, false)
+            ))
+
+        for (const deposit of successDeposits) {
+            console.log(`[Payment Monitor] Deposit ${deposit.refId} success. Processing notifications...`)
+
+            let discordUser = null
+            if (deposit.userId) {
+                const dbUser = await db.query.users.findFirst({
+                    where: eq(users.id, deposit.userId),
+                    columns: { discordId: true, username: true }
+                })
+                if (dbUser && dbUser.discordId) {
+                    discordUser = await client.users.fetch(dbUser.discordId).catch(() => null)
+                }
+            }
+
+            // --- 1. Channel Notification (Public & Private) ---
+            const notificationSent = await NotificationSystem.sendDepositSuccessLog(client, {
+                user: discordUser || { username: 'Guest/Web User', displayAvatarURL: () => null, toString: () => 'Guest' },
+                amount: parseFloat(deposit.amount),
+                refId: deposit.refId || 'N/A',
+                method: deposit.paymentChannel || 'QRIS'
+            })
+
+            // --- 2. DM Notification ---
             if (discordUser) {
                 const embed = successEmbed('Topup Berhasil! 💎',
-                    `Saldo sebesar **Rp ${parseFloat(amount).toLocaleString('id-ID')}** telah ditambahkan ke akun Anda.\nRef ID: \`${refId}\`\n\n*Status diperbarui oleh sistem monitoring.*`
+                    `Saldo sebesar **Rp ${parseFloat(deposit.amount).toLocaleString('id-ID')}** telah ditambahkan ke akun Anda.\nRef ID: \`${deposit.refId}\`\n\n*Status diperbarui oleh sistem monitoring.*`
                 )
                 await discordUser.send({ embeds: [embed] }).catch(() => { })
             }
+
+            // --- 3. Mark as notified ONLY if channel notification was successful ---
+            if (notificationSent) {
+                await db.update(deposits)
+                    .set({ isNotified: true })
+                    .where(eq(deposits.id, deposit.id))
+                console.log(`[Payment Monitor] ✅ Deposit ${deposit.refId} marked as notified`)
+            } else {
+                console.warn(`[Payment Monitor] ⚠️ Deposit ${deposit.refId} notification failed, will retry next cycle`)
+            }
         }
-    } catch (e) {
-        console.warn('[Payment Monitor] Failed to notify deposit success:', e)
+
+    } catch (error) {
+        console.error('[Payment Monitor] Check Completed Deposits Error:', error)
     }
 }

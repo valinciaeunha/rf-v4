@@ -87,6 +87,7 @@ export const deposits = pgTable("deposits", {
     payUrl: varchar("pay_url", { length: 500 }).default(""),
     status: depositStatusEnum("status").default("pending").notNull(),
     source: varchar("source", { length: 20 }).default("web"),
+    isNotified: boolean("is_notified").default(false).notNull(),
     paidAt: timestamp("paid_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
