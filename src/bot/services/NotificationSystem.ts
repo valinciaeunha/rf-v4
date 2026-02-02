@@ -28,14 +28,15 @@ export class NotificationSystem {
     /**
      * Send Success Log to Public (Censored) and Private (Full) Channels
      */
-    static async sendSuccessLog(client: Client, data: SUCCESS_LOG_DATA, guildId: string) {
+    static async sendSuccessLog(client: Client, data: SUCCESS_LOG_DATA, guildId?: string) {
         try {
-            // Fetch Settings
-            const settings = await db.query.botSettings.findFirst({
-                where: eq(botSettings.guildId, guildId)
-            })
+            // Fetch Settings (no guildId filter - supports multi-server channels)
+            const settings = await db.query.botSettings.findFirst()
 
-            if (!settings) return
+            if (!settings) {
+                console.warn('[NotificationSystem] No bot settings found in database')
+                return
+            }
 
             const publicChannels = settings.publicLogChannelId ? settings.publicLogChannelId.split(',').map(id => id.trim()) : []
             const privateChannels = settings.privateLogChannelId ? settings.privateLogChannelId.split(',').map(id => id.trim()) : []
@@ -77,9 +78,11 @@ export class NotificationSystem {
                 if (!channelId) continue
                 const channel = await client.channels.fetch(channelId).catch(() => null)
                 if (channel && channel.isTextBased() && 'send' in channel) {
-                    await (channel as any).send({ embeds: [createEmbed(true)] }).catch((e: any) =>
-                        console.warn(`[NotificationSystem] Failed public log to ${channelId}:`, e.message)
-                    )
+                    await (channel as any).send({ embeds: [createEmbed(true)] })
+                        .then(() => console.log(`[NotificationSystem] ✅ Sent public log to ${channelId}`))
+                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed public log to ${channelId}:`, e.message))
+                } else {
+                    console.warn(`[NotificationSystem] Channel ${channelId} not found or not text-based`)
                 }
             }
 
@@ -124,9 +127,11 @@ export class NotificationSystem {
                     }
 
                     // Send (Max 10 embeds per message)
-                    await (channel as any).send({ embeds: embeds.slice(0, 10) }).catch((e: any) =>
-                        console.warn(`[NotificationSystem] Failed private log to ${channelId}:`, e.message)
-                    )
+                    await (channel as any).send({ embeds: embeds.slice(0, 10) })
+                        .then(() => console.log(`[NotificationSystem] ✅ Sent private log to ${channelId}`))
+                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed private log to ${channelId}:`, e.message))
+                } else {
+                    console.warn(`[NotificationSystem] Private channel ${channelId} not found or not text-based`)
                 }
             }
 
@@ -138,13 +143,15 @@ export class NotificationSystem {
     /**
      * Send Expired Log
      */
-    static async sendExpiredLog(client: Client, data: EXPIRED_LOG_DATA, guildId: string) {
+    static async sendExpiredLog(client: Client, data: EXPIRED_LOG_DATA, guildId?: string) {
         try {
-            const settings = await db.query.botSettings.findFirst({
-                where: eq(botSettings.guildId, guildId)
-            })
+            // Fetch Settings (no guildId filter - supports multi-server channels)
+            const settings = await db.query.botSettings.findFirst()
 
-            if (!settings || !settings.expiredLogChannelId) return
+            if (!settings || !settings.expiredLogChannelId) {
+                console.warn('[NotificationSystem] No bot settings or expired channel found')
+                return
+            }
 
             const channelId = settings.expiredLogChannelId
             const channel = await client.channels.fetch(channelId).catch(() => null)
