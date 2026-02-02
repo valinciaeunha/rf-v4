@@ -30,14 +30,42 @@ interface TokopayCallbackBody {
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json() as TokopayCallbackBody
+        let data: any = {};
+
+        // Try parsing JSON body first (for POST)
+        try {
+            if (request.body) {
+                data = await request.json();
+            }
+        } catch (e) {
+            // Ignore JSON parse error, might be GET request
+        }
+
+        // If data is empty, try params (for GET or mixed)
+        const searchParams = request.nextUrl.searchParams;
+        if (!data.ref_id && searchParams.get('ref_id')) {
+            data = {
+                ref_id: searchParams.get('ref_id'),
+                status: searchParams.get('status'),
+                signature: searchParams.get('signature'),
+                total_bayar: searchParams.get('total_bayar'),
+                total_diterima: searchParams.get('total_diterima'),
+                // Add other fields as needed
+            };
+        }
+
         const {
             ref_id,
             status,
             signature,
             total_bayar,
             total_diterima,
-        } = body
+        } = data;
+
+        if (!ref_id || !signature) {
+            logger.warn("Missing required fields in callback:", { data, ip: request.headers.get("x-forwarded-for") || "unknown" })
+            return NextResponse.json({ status: "error", message: "Missing ref_id or signature" }, { status: 400 })
+        }
 
         // Verify signature
         if (!verifySignature(signature, ref_id)) {
@@ -182,6 +210,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Also support GET for testing
-export async function GET() {
-    return NextResponse.json({ status: "ok", message: "Tokopay callback endpoint is active" })
+// Also support GET for testing and redirects
+export async function GET(request: NextRequest) {
+    return POST(request);
 }
