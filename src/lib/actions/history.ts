@@ -39,6 +39,7 @@ export async function getHistory() {
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
+                timeZone: "Asia/Jakarta",
             }).replace(",", " -"),
             amount: new Intl.NumberFormat("id-ID", {
                 style: "currency",
@@ -68,6 +69,7 @@ export async function getHistory() {
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
+                timeZone: "Asia/Jakarta",
             }).replace(",", " -"),
             amount: new Intl.NumberFormat("id-ID", {
                 style: "currency",

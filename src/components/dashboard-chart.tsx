@@ -74,6 +74,7 @@ export function DashboardChart({ data }: DashboardChartProps) {
                                 return date.toLocaleDateString("id-ID", {
                                     month: "short",
                                     day: "numeric",
+                                    timeZone: "Asia/Jakarta",
                                 })
                             }}
                         />
@@ -85,6 +86,7 @@ export function DashboardChart({ data }: DashboardChartProps) {
                                         return new Date(value).toLocaleDateString("id-ID", {
                                             month: "short",
                                             day: "numeric",
+                                            timeZone: "Asia/Jakarta",
                                         })
                                     }}
                                     indicator="dot"
