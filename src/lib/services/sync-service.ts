@@ -117,19 +117,47 @@ export async function processSingleTransaction(trx: Transaction) {
         const tpStatus = (tokopayStatus || "").toString().toLowerCase()
 
         if (tpStatus === "paid" || tpStatus === "success" || tpStatus === "berhasil") {
-            // Get queued stocks
-            const queuedStocks = await db.select({
-                id: stocks.id,
-                code: stocks.code
-            })
-                .from(transactionQueues)
-                .innerJoin(stocks, eq(transactionQueues.stockId, stocks.id))
-                .where(eq(transactionQueues.transactionId, trx.id))
+            // SECURITY: Use transaction with row locking to prevent race condition
+            const result = await db.transaction(async (tx) => {
+                // Lock the transaction row first
+                const [lockedTx] = await tx
+                    .select()
+                    .from(transactions)
+                    .where(eq(transactions.id, trx.id))
+                    .for('update')
 
-            const stockCodes = queuedStocks.map(s => s.code)
-            const stockIds = queuedStocks.map(s => s.id)
+                // Check if already processed AFTER acquiring lock
+                if (!lockedTx || lockedTx.status === "success") {
+                    return { updated: false, reason: "already_processed" }
+                }
 
-            await db.transaction(async (tx) => {
+                // Get queued stocks INSIDE the transaction (after lock)
+                const queuedStocks = await tx.select({
+                    id: stocks.id,
+                    code: stocks.code
+                })
+                    .from(transactionQueues)
+                    .innerJoin(stocks, eq(transactionQueues.stockId, stocks.id))
+                    .where(eq(transactionQueues.transactionId, trx.id))
+
+                const stockCodes = queuedStocks.map(s => s.code)
+                const stockIds = queuedStocks.map(s => s.id)
+
+                // IMPORTANT: Fallback if no stocks found in queue
+                if (stockCodes.length === 0 && lockedTx.stockId && lockedTx.userId) {
+                    logger.warn(`[Sync] No queued stocks found for ${trx.orderId}, falling back to soldTo lookup`)
+
+                    const fallbackStocks = await tx.select({ id: stocks.id, code: stocks.code })
+                        .from(stocks)
+                        .where(eq(stocks.soldTo, lockedTx.userId))
+                        .limit(lockedTx.quantity)
+
+                    if (fallbackStocks.length > 0) {
+                        stockCodes.push(...fallbackStocks.map(s => s.code))
+                        stockIds.push(...fallbackStocks.map(s => s.id))
+                    }
+                }
+
                 await tx.update(transactions)
                     .set({
                         status: "success",
@@ -145,17 +173,31 @@ export async function processSingleTransaction(trx: Transaction) {
 
                 await tx.delete(transactionQueues)
                     .where(eq(transactionQueues.transactionId, trx.id))
+
+                logger.info(`[Sync] Transaction SUCCESS: ${trx.orderId} - Stocks: ${stockCodes.length}`)
+                return { updated: true, stockCount: stockCodes.length }
             })
 
             return { updated: true, status: "success" }
         } else if (tpStatus === "expired" || tpStatus === "kadaluarsa") {
-            const queuedStocks = await db.select({ id: transactionQueues.stockId })
-                .from(transactionQueues)
-                .where(eq(transactionQueues.transactionId, trx.id))
-
-            const stockIds = queuedStocks.map(s => s.id)
-
+            // Handle expired with row locking
             await db.transaction(async (tx) => {
+                const [lockedTx] = await tx
+                    .select()
+                    .from(transactions)
+                    .where(eq(transactions.id, trx.id))
+                    .for('update')
+
+                if (!lockedTx || lockedTx.status !== "pending") {
+                    return // Already processed
+                }
+
+                const queuedStocks = await tx.select({ id: transactionQueues.stockId })
+                    .from(transactionQueues)
+                    .where(eq(transactionQueues.transactionId, trx.id))
+
+                const stockIds = queuedStocks.map(s => s.id)
+
                 await tx.update(transactions)
                     .set({ status: "expired" })
                     .where(eq(transactions.id, trx.id))
@@ -180,14 +222,24 @@ export async function processSingleTransaction(trx: Transaction) {
 
             // Grace period configured in payment-config
             if (now > expireWithGrace) {
-
-                const queuedStocks = await db.select({ id: transactionQueues.stockId })
-                    .from(transactionQueues)
-                    .where(eq(transactionQueues.transactionId, trx.id))
-
-                const stockIds = queuedStocks.map(s => s.id)
-
+                // Handle timeout with row locking
                 await db.transaction(async (tx) => {
+                    const [lockedTx] = await tx
+                        .select()
+                        .from(transactions)
+                        .where(eq(transactions.id, trx.id))
+                        .for('update')
+
+                    if (!lockedTx || lockedTx.status !== "pending") {
+                        return // Already processed
+                    }
+
+                    const queuedStocks = await tx.select({ id: transactionQueues.stockId })
+                        .from(transactionQueues)
+                        .where(eq(transactionQueues.transactionId, trx.id))
+
+                    const stockIds = queuedStocks.map(s => s.id)
+
                     await tx.update(transactions)
                         .set({ status: "expired" })
                         .where(eq(transactions.id, trx.id))

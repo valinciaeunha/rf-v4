@@ -9,12 +9,16 @@ const TOKOPAY_SECRET = process.env.TOKOPAY_SECRET || ""
 const TOKOPAY_MERCHANT_ID = process.env.TOKOPAY_MERCHANT_ID || ""
 
 // Verify signature from Tokopay
-function verifySignature(signature: string, refId: string): boolean {
+// Signature format: MD5(merchant_id:secret:ref_id)
+function verifySignature(signature: string, refId: string): { valid: boolean; expected: string } {
     const expectedSignature = crypto
         .createHash("md5")
         .update(`${TOKOPAY_MERCHANT_ID}:${TOKOPAY_SECRET}:${refId}`)
         .digest("hex")
-    return signature === expectedSignature
+    return {
+        valid: signature === expectedSignature,
+        expected: expectedSignature
+    }
 }
 
 // Interface for Tokopay Callback Data
@@ -32,6 +36,7 @@ interface TokopayCallbackBody {
 export async function POST(request: NextRequest) {
     try {
         let data: any = {};
+        const clientIp = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"
 
         // Try parsing JSON body first (for POST)
         try {
@@ -66,15 +71,34 @@ export async function POST(request: NextRequest) {
         } = data;
 
         if (!ref_id || !signature) {
-            logger.warn("Missing required fields in callback:", { data, ip: request.headers.get("x-forwarded-for") || "unknown" })
+            logger.warn("Missing required fields in callback:", {
+                hasRefId: !!ref_id,
+                hasSignature: !!signature,
+                ip: clientIp
+            })
             return NextResponse.json({ status: "error", message: "Missing ref_id or signature" }, { status: 400 })
         }
 
         // Verify signature
-        if (!verifySignature(signature, ref_id)) {
-            logger.warn("Invalid signature for callback:", { ref_id, signature, ip: request.headers.get("x-forwarded-for") || "unknown" })
+        const signatureResult = verifySignature(signature, ref_id)
+        if (!signatureResult.valid) {
+            // Log detailed info for debugging signature issues
+            // NOTE: Be careful not to log the full secret in production
+            logger.warn("Invalid signature for callback:", {
+                ref_id,
+                receivedSignature: signature,
+                expectedSignaturePrefix: signatureResult.expected.substring(0, 8) + "...",
+                hasMerchantId: !!TOKOPAY_MERCHANT_ID,
+                hasSecret: !!TOKOPAY_SECRET,
+                ip: clientIp,
+                // Hint for debugging
+                hint: "Check if TOKOPAY_MERCHANT_ID and TOKOPAY_SECRET match Tokopay dashboard"
+            })
             return NextResponse.json({ status: "error", message: "Invalid signature" }, { status: 401 })
         }
+
+        // Log successful callback receipt
+        logger.info("Received valid Tokopay callback:", { ref_id, status, ip: clientIp })
 
         // 1. Try to find in Deposits table
         const deposit = await db.query.deposits.findFirst({
@@ -144,20 +168,50 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ status: "ok", message: "Already processed" })
             }
 
-            // Get queued stocks for this transaction
-            const queuedStocks = await db.select({
-                id: stocks.id,
-                code: stocks.code
-            })
-                .from(transactionQueues)
-                .innerJoin(stocks, eq(transactionQueues.stockId, stocks.id))
-                .where(eq(transactionQueues.transactionId, transaction.id))
-
             if (status === "Paid" || status === "Success") {
-                const stockCodes = queuedStocks.map(s => s.code)
-                const stockIds = queuedStocks.map(s => s.id)
+                // SECURITY: Use transaction with row locking to prevent race condition
+                const result = await db.transaction(async (tx) => {
+                    // Lock the transaction row first
+                    const [lockedTx] = await tx
+                        .select()
+                        .from(transactions)
+                        .where(eq(transactions.id, transaction.id))
+                        .for('update')
 
-                await db.transaction(async (tx) => {
+                    // Check if already processed AFTER acquiring lock
+                    if (!lockedTx || lockedTx.status === "success") {
+                        return { type: "already_processed" as const }
+                    }
+
+                    // Get queued stocks INSIDE the transaction (after lock)
+                    const queuedStocks = await tx.select({
+                        id: stocks.id,
+                        code: stocks.code
+                    })
+                        .from(transactionQueues)
+                        .innerJoin(stocks, eq(transactionQueues.stockId, stocks.id))
+                        .where(eq(transactionQueues.transactionId, transaction.id))
+
+                    const stockCodes = queuedStocks.map(s => s.code)
+                    const stockIds = queuedStocks.map(s => s.id)
+
+                    // IMPORTANT: If no stocks found, check stock_id from transaction
+                    // This is a fallback for when transactionQueues was already cleared
+                    if (stockCodes.length === 0 && lockedTx.stockId && lockedTx.userId) {
+                        logger.warn(`No queued stocks found for ${ref_id}, falling back to stockId ${lockedTx.stockId}`)
+
+                        // Get stock codes from stockId and quantity
+                        const fallbackStocks = await tx.select({ id: stocks.id, code: stocks.code })
+                            .from(stocks)
+                            .where(eq(stocks.soldTo, lockedTx.userId))
+                            .limit(lockedTx.quantity)
+
+                        if (fallbackStocks.length > 0) {
+                            stockCodes.push(...fallbackStocks.map(s => s.code))
+                            stockIds.push(...fallbackStocks.map(s => s.id))
+                        }
+                    }
+
                     // Update transaction status and assign codes
                     await tx.update(transactions)
                         .set({
@@ -176,13 +230,41 @@ export async function POST(request: NextRequest) {
                     // Clear from queue
                     await tx.delete(transactionQueues)
                         .where(eq(transactionQueues.transactionId, transaction.id))
+
+                    logger.info(`Transaction SUCCESS via Callback: ${ref_id} - Stocks: ${stockCodes.length}`)
+                    return { type: "success" as const, stockCount: stockCodes.length }
                 })
+
+                if (result.type === "already_processed") {
+                    return NextResponse.json({ status: "ok", message: "Already processed" })
+                }
 
                 return NextResponse.json({ status: "ok", message: "Transaction processed" })
             } else if (status === "Expired" || status === "Failed") {
-                const stockIds = queuedStocks.map(s => s.id)
-
+                // Handle expired/failed with row locking
                 await db.transaction(async (tx) => {
+                    // Lock the transaction row first
+                    const [lockedTx] = await tx
+                        .select()
+                        .from(transactions)
+                        .where(eq(transactions.id, transaction.id))
+                        .for('update')
+
+                    if (!lockedTx || lockedTx.status !== "pending") {
+                        return // Already processed
+                    }
+
+                    // Get queued stocks INSIDE the transaction
+                    const queuedStocks = await tx.select({
+                        id: stocks.id,
+                        code: stocks.code
+                    })
+                        .from(transactionQueues)
+                        .innerJoin(stocks, eq(transactionQueues.stockId, stocks.id))
+                        .where(eq(transactionQueues.transactionId, transaction.id))
+
+                    const stockIds = queuedStocks.map(s => s.id)
+
                     await tx.update(transactions)
                         .set({ status: "expired" })
                         .where(eq(transactions.id, transaction.id))

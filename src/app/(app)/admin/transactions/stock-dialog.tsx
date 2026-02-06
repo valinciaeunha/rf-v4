@@ -29,12 +29,30 @@ export function StockDialog({ stocks, orderId, status }: StockDialogProps) {
         return <span className="text-muted-foreground text-xs">-</span>
     }
 
-    const handleCopy = (text: string, id: string, label: string) => {
+    const handleCopy = async (text: string, id: string, label: string) => {
         if (!isSuccess) return
-        navigator.clipboard.writeText(text)
-        setCopiedId(id)
-        toast.success(`${label} berhasil disalin`)
-        setTimeout(() => setCopiedId(null), 2000)
+
+        try {
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text)
+            } else {
+                // Fallback for non-secure contexts (HTTP)
+                const textArea = document.createElement('textarea')
+                textArea.value = text
+                textArea.style.position = 'fixed'
+                textArea.style.left = '-9999px'
+                document.body.appendChild(textArea)
+                textArea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textArea)
+            }
+            setCopiedId(id)
+            toast.success(`${label} berhasil disalin`)
+            setTimeout(() => setCopiedId(null), 2000)
+        } catch (error) {
+            toast.error('Gagal menyalin ke clipboard')
+        }
     }
 
     // If only 1 stock, show inline

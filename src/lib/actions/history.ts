@@ -48,7 +48,19 @@ export async function getHistory() {
             }).format(Number(item.price || 0)),
             status: item.status.charAt(0).toUpperCase() + item.status.slice(1), // Capitalize status
             product: item.productName,
-            code: item.assignedStocks ? JSON.parse(item.assignedStocks) : "Processed", // Handle potential JSON or string
+            // Handle assignedStocks: parse JSON, but return null if empty array or invalid
+            code: (() => {
+                if (!item.assignedStocks) return null;
+                try {
+                    const parsed = JSON.parse(item.assignedStocks);
+                    // If array is empty, return null so UI shows "-" instead of "0 Kode"
+                    if (Array.isArray(parsed) && parsed.length === 0) return null;
+                    return parsed;
+                } catch {
+                    // If not valid JSON, return as string
+                    return item.assignedStocks;
+                }
+            })(),
             // For pending payments
             expiresAt: item.expiredAt ? item.expiredAt.toISOString() : new Date(new Date(item.createdAt).getTime() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000).toISOString(),
         }));

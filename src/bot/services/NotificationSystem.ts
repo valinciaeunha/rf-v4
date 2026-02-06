@@ -79,68 +79,86 @@ export class NotificationSystem {
             // 1. Send to Public Channels
             for (const channelId of publicChannels) {
                 if (!channelId) continue
-                const channel = await client.channels.fetch(channelId).catch(() => null)
-                if (channel && channel.isTextBased() && 'send' in channel) {
-                    await (channel as any).send({ embeds: [createEmbed(true)] })
-                        .then(() => {
-                            console.log(`[NotificationSystem] ✅ Sent public log to ${channelId}`)
-                            success = true
-                        })
-                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed public log to ${channelId}:`, e.message))
-                } else {
-                    console.warn(`[NotificationSystem] Channel ${channelId} not found or not text-based`)
+                try {
+                    const channel = await client.channels.fetch(channelId).catch(() => null)
+                    if (channel && channel.isTextBased() && 'send' in channel) {
+                        await (channel as any).send({ embeds: [createEmbed(true)] })
+                        console.log(`[NotificationSystem] ✅ Sent public log to ${channelId}`)
+                        success = true
+                    } else {
+                        console.warn(`[NotificationSystem] Channel ${channelId} not found or not text-based`)
+                    }
+                } catch (e: any) {
+                    // Log detailed error info for debugging Discord API issues
+                    const errorCode = e.code || e.httpStatus || 'unknown'
+                    const errorMessage = e.message || 'Unknown error'
+                    console.warn(`[NotificationSystem] ❌ Failed public log to ${channelId}: [${errorCode}] ${errorMessage}`)
+
+                    // If it's a permission error (403), suggest fix
+                    if (errorCode === 50001 || errorCode === 50013 || e.status === 403) {
+                        console.warn(`[NotificationSystem] 💡 Fix: Bot may not have permission to access channel ${channelId}. Check channel permissions or remove invalid channel from settings.`)
+                    }
                 }
             }
 
             // 2. Send to Private Channels (With Stock)
             for (const channelId of privateChannels) {
                 if (!channelId) continue
-                const channel = await client.channels.fetch(channelId).catch(() => null)
-                if (channel && channel.isTextBased() && 'send' in channel) {
-                    const embeds = []
-                    const mainEmbed = createEmbed(false) // Not censored
+                try {
+                    const channel = await client.channels.fetch(channelId).catch(() => null)
+                    if (channel && channel.isTextBased() && 'send' in channel) {
+                        const embeds = []
+                        const mainEmbed = createEmbed(false) // Not censored
 
-                    // Stock Splitting Logic
-                    if (data.stockContent) {
-                        const stockLines = data.stockContent.split('\n')
-                        const ITEMS_PER_EMBED = 20 // Keep it safe
+                        // Stock Splitting Logic
+                        if (data.stockContent) {
+                            const stockLines = data.stockContent.split('\n')
+                            const ITEMS_PER_EMBED = 20 // Keep it safe
 
-                        if (stockLines.length <= ITEMS_PER_EMBED) {
-                            mainEmbed.addFields({
-                                name: '📄 Data Stok',
-                                value: `\`\`\`\n${data.stockContent}\`\`\``,
-                                inline: false
-                            })
-                            embeds.push(mainEmbed)
+                            if (stockLines.length <= ITEMS_PER_EMBED) {
+                                mainEmbed.addFields({
+                                    name: '📄 Data Stok',
+                                    value: `\`\`\`\n${data.stockContent}\`\`\``,
+                                    inline: false
+                                })
+                                embeds.push(mainEmbed)
+                            } else {
+                                embeds.push(mainEmbed)
+                                const chunks = []
+                                for (let i = 0; i < stockLines.length; i += ITEMS_PER_EMBED) {
+                                    chunks.push(stockLines.slice(i, i + ITEMS_PER_EMBED))
+                                }
+
+                                for (let i = 0; i < chunks.length; i++) {
+                                    const stockEmbed = new EmbedBuilder()
+                                        .setColor(BOT_CONFIG.color)
+                                        .setTitle(`📄 Data Stok (${i + 1}/${chunks.length})`)
+                                        .setDescription(`\`\`\`\n${chunks[i].join('\n')}\`\`\``)
+                                        .setTimestamp()
+                                    embeds.push(stockEmbed)
+                                }
+                            }
                         } else {
                             embeds.push(mainEmbed)
-                            const chunks = []
-                            for (let i = 0; i < stockLines.length; i += ITEMS_PER_EMBED) {
-                                chunks.push(stockLines.slice(i, i + ITEMS_PER_EMBED))
-                            }
-
-                            for (let i = 0; i < chunks.length; i++) {
-                                const stockEmbed = new EmbedBuilder()
-                                    .setColor(BOT_CONFIG.color)
-                                    .setTitle(`📄 Data Stok (${i + 1}/${chunks.length})`)
-                                    .setDescription(`\`\`\`\n${chunks[i].join('\n')}\`\`\``)
-                                    .setTimestamp()
-                                embeds.push(stockEmbed)
-                            }
                         }
-                    } else {
-                        embeds.push(mainEmbed)
-                    }
 
-                    // Send (Max 10 embeds per message)
-                    await (channel as any).send({ embeds: embeds.slice(0, 10) })
-                        .then(() => {
-                            console.log(`[NotificationSystem] ✅ Sent private log to ${channelId}`)
-                            success = true
-                        })
-                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed private log to ${channelId}:`, e.message))
-                } else {
-                    console.warn(`[NotificationSystem] Private channel ${channelId} not found or not text-based`)
+                        // Send (Max 10 embeds per message)
+                        await (channel as any).send({ embeds: embeds.slice(0, 10) })
+                        console.log(`[NotificationSystem] ✅ Sent private log to ${channelId}`)
+                        success = true
+                    } else {
+                        console.warn(`[NotificationSystem] Private channel ${channelId} not found or not text-based`)
+                    }
+                } catch (e: any) {
+                    // Log detailed error info for debugging Discord API issues
+                    const errorCode = e.code || e.httpStatus || 'unknown'
+                    const errorMessage = e.message || 'Unknown error'
+                    console.warn(`[NotificationSystem] ❌ Failed private log to ${channelId}: [${errorCode}] ${errorMessage}`)
+
+                    // If it's a permission error (403), suggest fix
+                    if (errorCode === 50001 || errorCode === 50013 || e.status === 403) {
+                        console.warn(`[NotificationSystem] 💡 Fix: Bot may not have permission to access channel ${channelId}. Check channel permissions or remove invalid channel from settings.`)
+                    }
                 }
             }
 
@@ -165,30 +183,44 @@ export class NotificationSystem {
             }
 
             const channelId = settings.expiredLogChannelId
-            const channel = await client.channels.fetch(channelId).catch(() => null)
 
-            if (channel && channel.isTextBased() && 'send' in channel) {
-                // Censor Ref ID (expired channel might be public)
-                let refIdDisplay = `\`${data.refId}\``
-                if (data.refId && data.refId.length > 8) {
-                    const prefix = data.refId.substring(0, 6)
-                    refIdDisplay = `\`${prefix}xxxxx\``
+            try {
+                const channel = await client.channels.fetch(channelId).catch(() => null)
+
+                if (channel && channel.isTextBased() && 'send' in channel) {
+                    // Censor Ref ID (expired channel might be public)
+                    let refIdDisplay = `\`${data.refId}\``
+                    if (data.refId && data.refId.length > 8) {
+                        const prefix = data.refId.substring(0, 6)
+                        refIdDisplay = `\`${prefix}xxxxx\``
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('Transaksi Expired / Timeout ❌')
+                        .setColor(0xEF4444) // Red
+                        .addFields(
+                            { name: 'Pembeli', value: data.username, inline: true },
+                            { name: 'Produk', value: data.productName, inline: true },
+                            { name: 'Jumlah', value: `${data.quantity} item`, inline: true },
+                            { name: 'Ref ID', value: refIdDisplay, inline: true },
+                            { name: 'Alasan', value: data.reason || 'Waktu Habis', inline: false },
+                            { name: 'Tanggal', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+                        )
+                        .setTimestamp()
+
+                    await (channel as any).send({ embeds: [embed] })
+                    console.log(`[NotificationSystem] ✅ Sent expired log to ${channelId}`)
+                } else {
+                    console.warn(`[NotificationSystem] Expired channel ${channelId} not found or not text-based`)
                 }
+            } catch (e: any) {
+                const errorCode = e.code || e.httpStatus || 'unknown'
+                const errorMessage = e.message || 'Unknown error'
+                console.warn(`[NotificationSystem] ❌ Failed expired log to ${channelId}: [${errorCode}] ${errorMessage}`)
 
-                const embed = new EmbedBuilder()
-                    .setTitle('Transaksi Expired / Timeout ❌')
-                    .setColor(0xEF4444) // Red
-                    .addFields(
-                        { name: 'Pembeli', value: data.username, inline: true },
-                        { name: 'Produk', value: data.productName, inline: true },
-                        { name: 'Jumlah', value: `${data.quantity} item`, inline: true },
-                        { name: 'Ref ID', value: refIdDisplay, inline: true },
-                        { name: 'Alasan', value: data.reason || 'Waktu Habis', inline: false },
-                        { name: 'Tanggal', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
-                    )
-                    .setTimestamp()
-
-                await (channel as any).send({ embeds: [embed] })
+                if (errorCode === 50001 || errorCode === 50013 || e.status === 403) {
+                    console.warn(`[NotificationSystem] 💡 Fix: Bot may not have permission to access expired channel ${channelId}. Update bot settings.`)
+                }
             }
         } catch (error) {
             console.error('[NotificationSystem] Expired Log Error:', error)
@@ -247,28 +279,42 @@ export class NotificationSystem {
             // Send to Public Channels (CENSORED)
             for (const channelId of publicChannels) {
                 if (!channelId) continue
-                const channel = await client.channels.fetch(channelId).catch(() => null)
-                if (channel && channel.isTextBased() && 'send' in channel) {
-                    await (channel as any).send({ embeds: [createDepositEmbed(true)] })
-                        .then(() => {
-                            console.log(`[NotificationSystem] ✅ Sent deposit log to public ${channelId}`)
-                            success = true
-                        })
-                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed deposit log to ${channelId}:`, e.message))
+                try {
+                    const channel = await client.channels.fetch(channelId).catch(() => null)
+                    if (channel && channel.isTextBased() && 'send' in channel) {
+                        await (channel as any).send({ embeds: [createDepositEmbed(true)] })
+                        console.log(`[NotificationSystem] ✅ Sent deposit log to public ${channelId}`)
+                        success = true
+                    }
+                } catch (e: any) {
+                    const errorCode = e.code || e.httpStatus || 'unknown'
+                    const errorMessage = e.message || 'Unknown error'
+                    console.warn(`[NotificationSystem] ❌ Failed deposit log to public ${channelId}: [${errorCode}] ${errorMessage}`)
+
+                    if (errorCode === 50001 || errorCode === 50013 || e.status === 403) {
+                        console.warn(`[NotificationSystem] 💡 Fix: Bot may not have permission to access channel ${channelId}. Check channel permissions.`)
+                    }
                 }
             }
 
             // Send to Private Channels (FULL ID)
             for (const channelId of privateChannels) {
                 if (!channelId) continue
-                const channel = await client.channels.fetch(channelId).catch(() => null)
-                if (channel && channel.isTextBased() && 'send' in channel) {
-                    await (channel as any).send({ embeds: [createDepositEmbed(false)] })
-                        .then(() => {
-                            console.log(`[NotificationSystem] ✅ Sent deposit log to private ${channelId}`)
-                            success = true
-                        })
-                        .catch((e: any) => console.warn(`[NotificationSystem] ❌ Failed deposit log to ${channelId}:`, e.message))
+                try {
+                    const channel = await client.channels.fetch(channelId).catch(() => null)
+                    if (channel && channel.isTextBased() && 'send' in channel) {
+                        await (channel as any).send({ embeds: [createDepositEmbed(false)] })
+                        console.log(`[NotificationSystem] ✅ Sent deposit log to private ${channelId}`)
+                        success = true
+                    }
+                } catch (e: any) {
+                    const errorCode = e.code || e.httpStatus || 'unknown'
+                    const errorMessage = e.message || 'Unknown error'
+                    console.warn(`[NotificationSystem] ❌ Failed deposit log to private ${channelId}: [${errorCode}] ${errorMessage}`)
+
+                    if (errorCode === 50001 || errorCode === 50013 || e.status === 403) {
+                        console.warn(`[NotificationSystem] 💡 Fix: Bot may not have permission to access channel ${channelId}. Check channel permissions.`)
+                    }
                 }
             }
 

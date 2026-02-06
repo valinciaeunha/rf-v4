@@ -129,11 +129,28 @@ export default function HistoryPage() {
         fetchData();
     }, []);
 
-    const handleCopy = (text: string, id: string, label: string) => {
-        navigator.clipboard.writeText(text)
-        setCopiedId(id)
-        toast.success(`${label} berhasil disalin`)
-        setTimeout(() => setCopiedId(null), 2000)
+    const handleCopy = async (text: string, id: string, label: string) => {
+        try {
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text)
+            } else {
+                // Fallback for non-secure contexts (HTTP)
+                const textArea = document.createElement('textarea')
+                textArea.value = text
+                textArea.style.position = 'fixed'
+                textArea.style.left = '-9999px'
+                document.body.appendChild(textArea)
+                textArea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textArea)
+            }
+            setCopiedId(id)
+            toast.success(`${label} berhasil disalin`)
+            setTimeout(() => setCopiedId(null), 2000)
+        } catch (error) {
+            toast.error('Gagal menyalin ke clipboard')
+        }
     }
 
     const renderCodeCell = (item: HistoryItem) => {
@@ -141,6 +158,11 @@ export default function HistoryPage() {
 
         // Only show code for Success status
         if (item.status !== "Success") {
+            return <span className="text-muted-foreground text-xs">-</span>;
+        }
+
+        // Handle null/undefined/empty code
+        if (!item.code || (Array.isArray(item.code) && item.code.length === 0)) {
             return <span className="text-muted-foreground text-xs">-</span>;
         }
 
