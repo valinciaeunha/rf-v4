@@ -42,11 +42,17 @@ const messageCreateEvent: BotEvent<typeof Events.MessageCreate> = {
             // We cast to any to access parentId easily, or check 'parentId' in channel
             const parentId = 'parentId' in channel ? (channel as any).parentId : null
 
+            console.log(`[Bot Debug] Message in Channel: ${(channel as any).name} (${channel.id}), Parent: ${parentId}`)
+            console.log(`[Bot Debug] Allowed Categories: ${categoryIdsString}`)
+
             if (!parentId) return
 
             const allowedCategories = categoryIdsString.split(',').map(id => id.trim())
 
-            if (!allowedCategories.includes(parentId)) return
+            if (!allowedCategories.includes(parentId)) {
+                console.log(`[Bot Debug] Ignored: Parent ID ${parentId} not in allowed list.`)
+                return
+            }
 
             // 6. Process AI
             await channel.sendTyping()
