@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { auditLogs, users, products, productSpecifications, stocks, deposits, transactions, reviews, transactionQueues, liveMessages, botSettings } from "@/lib/db/schema"
+import { auditLogs, users, products, productSpecifications, stocks, deposits, transactions, reviews, transactionQueues, liveMessages, botSettings, tickets, ticketMessages } from "@/lib/db/schema"
 import { desc, eq, like, or, count, sql, getTableColumns } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { getSessionUser } from "@/lib/actions/auth"
@@ -32,6 +32,8 @@ const dbTables = {
     auditLogs,
     liveMessages,
     botSettings,
+    tickets,
+    ticketMessages,
 } as const
 
 type TableName = keyof typeof dbTables

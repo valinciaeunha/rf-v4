@@ -7,6 +7,7 @@ import showCommand from './commands/show'
 // Import events
 import readyEvent from './events/ready'
 import interactionEvent from './events/interaction'
+import messageCreateEvent from './events/messageCreate'
 
 // ============== CLIENT SETUP ==============
 
@@ -16,6 +17,7 @@ export function createClient(): ExtendedClient {
             GatewayIntentBits.Guilds,
             GatewayIntentBits.GuildMessages,
             GatewayIntentBits.DirectMessages,
+            GatewayIntentBits.MessageContent, // Required for reading message content
         ]
     }) as ExtendedClient
 
@@ -50,7 +52,7 @@ export function loadEvents(client: ExtendedClient): void {
     const events: BotEvent[] = [
         readyEvent as BotEvent,
         interactionEvent as BotEvent,
-        // Add more events here
+        messageCreateEvent as BotEvent,
     ]
 
     for (const event of events) {

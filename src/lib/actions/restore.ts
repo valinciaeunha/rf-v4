@@ -3,7 +3,8 @@
 import { db } from "@/lib/db"
 import {
     users, products, productSpecifications, stocks,
-    deposits, transactions, reviews, transactionQueues, auditLogs
+    deposits, transactions, reviews, transactionQueues, auditLogs,
+    tickets, ticketMessages, liveMessages, botSettings
 } from "@/lib/db/schema"
 import { getSessionUser } from "@/lib/actions/auth"
 import { sql } from "drizzle-orm"
@@ -30,6 +31,10 @@ const tableRegistry = [
     { name: 'transactions', table: transactions },
     { name: 'reviews', table: reviews },
     { name: 'transactionQueues', table: transactionQueues },
+    { name: 'tickets', table: tickets },
+    { name: 'ticketMessages', table: ticketMessages },
+    { name: 'liveMessages', table: liveMessages },
+    { name: 'botSettings', table: botSettings },
     { name: 'auditLogs', table: auditLogs },
 ] as const
 
@@ -108,6 +113,10 @@ export async function restoreFromJson(jsonData: RestoreData, confirmPhrase: stri
         await db.execute(sql`ALTER SEQUENCE transactions_id_seq RESTART WITH 1`)
         await db.execute(sql`ALTER SEQUENCE reviews_id_seq RESTART WITH 1`)
         await db.execute(sql`ALTER SEQUENCE transaction_queues_id_seq RESTART WITH 1`)
+        await db.execute(sql`ALTER SEQUENCE tickets_id_seq RESTART WITH 1`)
+        await db.execute(sql`ALTER SEQUENCE ticket_messages_id_seq RESTART WITH 1`)
+        await db.execute(sql`ALTER SEQUENCE live_messages_id_seq RESTART WITH 1`)
+        await db.execute(sql`ALTER SEQUENCE bot_settings_id_seq RESTART WITH 1`)
         await db.execute(sql`ALTER SEQUENCE audit_logs_id_seq RESTART WITH 1`)
 
         // Step 3: Insert data in correct order with batching
@@ -141,7 +150,10 @@ export async function restoreFromJson(jsonData: RestoreData, confirmPhrase: stri
             if (maxId > 0) {
                 const seqName = `${name === 'productSpecifications' ? 'product_specifications' :
                     name === 'transactionQueues' ? 'transaction_queues' :
-                        name === 'auditLogs' ? 'audit_logs' : name}_id_seq`
+                        name === 'auditLogs' ? 'audit_logs' :
+                            name === 'ticketMessages' ? 'ticket_messages' :
+                                name === 'liveMessages' ? 'live_messages' :
+                                    name === 'botSettings' ? 'bot_settings' : name}_id_seq`
                 await db.execute(sql.raw(`ALTER SEQUENCE ${seqName} RESTART WITH ${maxId + 1}`))
             }
 

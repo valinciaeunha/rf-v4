@@ -40,6 +40,8 @@ export async function updateBotSettings(data: {
     publicLogChannelId: string
     privateLogChannelId: string
     expiredLogChannelId: string
+    aiChatEnabled: boolean
+    aiChatCategoryIds: string
 }) {
     try {
         // Upsert
@@ -47,13 +49,17 @@ export async function updateBotSettings(data: {
             guildId: data.guildId,
             publicLogChannelId: data.publicLogChannelId,
             privateLogChannelId: data.privateLogChannelId,
-            expiredLogChannelId: data.expiredLogChannelId
+            expiredLogChannelId: data.expiredLogChannelId,
+            aiChatEnabled: data.aiChatEnabled,
+            aiChatCategoryIds: data.aiChatCategoryIds,
         }).onConflictDoUpdate({
             target: botSettings.guildId,
             set: {
                 publicLogChannelId: data.publicLogChannelId,
                 privateLogChannelId: data.privateLogChannelId,
                 expiredLogChannelId: data.expiredLogChannelId,
+                aiChatEnabled: data.aiChatEnabled,
+                aiChatCategoryIds: data.aiChatCategoryIds,
                 updatedAt: new Date()
             }
         })

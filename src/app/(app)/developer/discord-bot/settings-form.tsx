@@ -14,17 +14,22 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { updateBotSettings } from "@/lib/actions/bot-settings"
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
 
 const schema = z.object({
-    guildId: z.string().min(1, "Guild ID is required"),
-    publicLogChannelId: z.string().optional(),
-    privateLogChannelId: z.string().optional(),
-    expiredLogChannelId: z.string().optional(),
+    guildId: z.string().min(1, "Guild ID is required").default("default"),
+    publicLogChannelId: z.string().default(""),
+    privateLogChannelId: z.string().default(""),
+    expiredLogChannelId: z.string().default(""),
+    aiChatEnabled: z.boolean().default(true),
+    aiChatCategoryIds: z.string().default(""),
 })
+
+type SettingsFormValues = z.infer<typeof schema>
 
 interface SettingsFormProps {
     initialData: any
@@ -34,17 +39,22 @@ interface SettingsFormProps {
 export function BotSettingsForm({ initialData, defaultGuildId }: SettingsFormProps) {
     const [loading, setLoading] = useState(false)
 
-    const form = useForm<z.infer<typeof schema>>({
-        resolver: zodResolver(schema),
+    // Fallback to "default" if no ID provided
+    const activeGuildId = initialData?.guildId || defaultGuildId || "default"
+
+    const form = useForm<SettingsFormValues>({
+        resolver: zodResolver(schema) as any,
         defaultValues: {
-            guildId: initialData?.guildId || defaultGuildId || "",
+            guildId: activeGuildId,
             publicLogChannelId: initialData?.publicLogChannelId || "",
             privateLogChannelId: initialData?.privateLogChannelId || "",
             expiredLogChannelId: initialData?.expiredLogChannelId || "",
+            aiChatEnabled: initialData?.aiChatEnabled ?? true,
+            aiChatCategoryIds: initialData?.aiChatCategoryIds || "",
         },
     })
 
-    async function onSubmit(data: z.infer<typeof schema>) {
+    async function onSubmit(data: SettingsFormValues) {
         setLoading(true)
         try {
             const result = await updateBotSettings({
@@ -52,6 +62,8 @@ export function BotSettingsForm({ initialData, defaultGuildId }: SettingsFormPro
                 publicLogChannelId: data.publicLogChannelId || "",
                 privateLogChannelId: data.privateLogChannelId || "",
                 expiredLogChannelId: data.expiredLogChannelId || "",
+                aiChatEnabled: data.aiChatEnabled,
+                aiChatCategoryIds: data.aiChatCategoryIds || "",
             })
 
             if (result.success) {
@@ -74,69 +86,107 @@ export function BotSettingsForm({ initialData, defaultGuildId }: SettingsFormPro
                     control={form.control}
                     name="guildId"
                     render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Guild ID</FormLabel>
+                        <FormItem className="hidden">
                             <FormControl>
-                                <Input placeholder="123456789..." {...field} />
+                                <Input type="hidden" {...field} />
                             </FormControl>
-                            <FormDescription>
-                                The ID of the Discord Server (Guild) where the bot is active.
-                            </FormDescription>
-                            <FormMessage />
                         </FormItem>
                     )}
                 />
 
-                <FormField
-                    control={form.control}
-                    name="publicLogChannelId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Public Log Channels</FormLabel>
-                            <FormControl>
-                                <Input placeholder="ChannelID1, ChannelID2..." {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Censored transaction logs will be sent here. Separate multiple IDs with commas.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="aiChatEnabled"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">AI Chat</FormLabel>
+                                    <FormDescription>
+                                        Enable/Disable AI Chat in Discord.
+                                    </FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
 
-                <FormField
-                    control={form.control}
-                    name="privateLogChannelId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Private Log Channels</FormLabel>
-                            <FormControl>
-                                <Input placeholder="ChannelID1, ChannelID2..." {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Full transaction logs (with stock data) will be sent here. Separate multiple IDs with commas.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                    <FormField
+                        control={form.control}
+                        name="aiChatCategoryIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>AI Chat Categories</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="CatID1, CatID2..." {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                    Comma separated Category IDs where AI Chat is active.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
 
-                <FormField
-                    control={form.control}
-                    name="expiredLogChannelId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Expired Log Channel</FormLabel>
-                            <FormControl>
-                                <Input placeholder="ChannelID..." {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Notifications for expired or failed transactions.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <div className="space-y-4 rounded-lg border p-4 shadow-sm bg-muted/20">
+                    <h3 className="font-medium">Log Channels</h3>
+                    <FormField
+                        control={form.control}
+                        name="publicLogChannelId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Public Logs</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="ChannelID1, ChannelID2..." {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                    Censored transaction logs.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="privateLogChannelId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Private Logs</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="ChannelID1, ChannelID2..." {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                    Full transaction logs (with stock data).
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="expiredLogChannelId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Expired/Failed Logs</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="ChannelID..." {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                    Notifications for expired or failed transactions.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
 
                 <Button type="submit" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

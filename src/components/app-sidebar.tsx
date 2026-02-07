@@ -96,6 +96,25 @@ const adminNav = [
                 title: "Transaksi",
                 url: "/admin/transactions",
             },
+            {
+                title: "Tokopay",
+                url: "/admin/tokopay",
+            },
+        ],
+    },
+]
+
+// Define ticket nav items (Admin Support)
+const ticketNav = [
+    {
+        title: "Support Ticket",
+        url: "#",
+        icon: Headphones,
+        items: [
+            {
+                title: "Daftar Ticket",
+                url: "/admin/tickets",
+            },
         ],
     },
 ]
@@ -147,9 +166,11 @@ export function AppSidebar({ user: initialUser, ...props }: React.ComponentProps
 
     // Filter/Combine nav items based on role
     const navItems = [...data.navMain]
-    if (user.role === "admin" || user.role === "developer") {
+    if (user.role === "admin" || user.role === "developer" || user.role === "owner") {
         // @ts-ignore - Combine types loosely
         navItems.push(...adminNav)
+        // @ts-ignore
+        navItems.push(...ticketNav)
     }
     if (user.role === "developer") {
         // @ts-ignore - Developer-only menu

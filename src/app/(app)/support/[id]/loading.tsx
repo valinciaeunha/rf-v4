@@ -1,0 +1,41 @@
+import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+
+export default function TicketLoading() {
+    return (
+        <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+            <div className="flex flex-col flex-1 min-h-0 p-4 pb-0 md:p-6 md:pb-0 gap-4">
+                <div className="flex items-center gap-2 shrink-0">
+                    <Skeleton className="h-9 w-24 rounded-md" />
+                </div>
+
+                <Card className="flex flex-col flex-1 min-h-0 bg-background/50 backdrop-blur-sm border-muted/50 overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between border-b px-6 py-4 space-y-0 bg-muted/10 shrink-0">
+                        <div className="flex flex-col gap-2">
+                            <Skeleton className="h-5 w-48" />
+                            <Skeleton className="h-3 w-32" />
+                        </div>
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                    </CardHeader>
+
+                    <CardContent className="flex-1 overflow-y-auto p-6 space-y-6 bg-muted/5">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className={`flex w-full gap-3 ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                                {i % 2 !== 0 && <Skeleton className="h-8 w-8 rounded-full shrink-0" />}
+                                <div className={`flex flex-col ${i % 2 === 0 ? 'items-end' : 'items-start'} max-w-[80%]`}>
+                                    <Skeleton className="h-3 w-20 mb-2 px-1" />
+                                    <Skeleton className={`h-16 w-[200px] md:w-[300px] rounded-2xl ${i % 2 === 0 ? 'rounded-tr-sm' : 'rounded-tl-sm'}`} />
+                                </div>
+                                {i % 2 === 0 && <Skeleton className="h-8 w-8 rounded-full shrink-0" />}
+                            </div>
+                        ))}
+                    </CardContent>
+
+                    <CardFooter className="p-4 border-t bg-background shrink-0">
+                        <Skeleton className="h-12 w-full rounded-xl" />
+                    </CardFooter>
+                </Card>
+            </div>
+        </div>
+    )
+}

@@ -27,6 +27,17 @@ services:
       - redfinger-net
     restart: always
 
+  redis-ui:
+    image: redis/redisinsight:latest
+    container_name: redfinger-redis-ui
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+    networks:
+      - redfinger-net
+    restart: always
+
 volumes:
   postgres_data:
   redis_data:

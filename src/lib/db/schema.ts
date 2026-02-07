@@ -1,10 +1,13 @@
 import { pgTable, text, serial, timestamp, decimal, varchar, index, bigserial, integer, boolean, pgEnum, bigint } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 export const productTypeEnum = pgEnum("product_type", ["instant", "manual"]);
 export const productStatusEnum = pgEnum("product_status", ["active", "inactive"]);
 export const stockStatusEnum = pgEnum("stock_status", ["ready", "sold", "reserved"]);
 export const depositStatusEnum = pgEnum("deposit_status", ["pending", "success", "failed", "expired"]);
 export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "success", "failed", "expired", "refund"]);
+export const ticketStatusEnum = pgEnum("ticket_status", ["open", "answered", "closed"]);
+export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high"]);
 
 export const products = pgTable("products", {
     id: serial("id").primaryKey(),
@@ -203,6 +206,88 @@ export const botSettings = pgTable("bot_settings", {
     publicLogChannelId: text("public_log_channel_id"), // Comma separated IDs
     privateLogChannelId: text("private_log_channel_id"), // Comma separated IDs
     expiredLogChannelId: text("expired_log_channel_id"), // Single ID usually, but text allows flexibility
+    aiChatEnabled: boolean("ai_chat_enabled").default(true).notNull(), // Enable/Disable AI Chat
+    aiChatCategoryIds: text("ai_chat_category_ids"), // Comma separated Category IDs where AI Chat is active
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
 });
+
+// ========== TICKETS (SUPPORT) ==========
+export const tickets = pgTable("tickets", {
+    id: serial("id").primaryKey(),
+    userId: bigint("user_id", { mode: "number" }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+    subject: varchar("subject", { length: 255 }).notNull(),
+    status: ticketStatusEnum("status").default("open").notNull(),
+    priority: ticketPriorityEnum("priority").default("medium").notNull(),
+    aiEnabled: boolean("ai_enabled").default(true).notNull(),
+    lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => {
+    return {
+        ticketUserIdIdx: index("ticket_user_id_idx").on(table.userId),
+        ticketStatusIdx: index("ticket_status_idx").on(table.status),
+    };
+});
+
+export const ticketMessages = pgTable("ticket_messages", {
+    id: serial("id").primaryKey(),
+    ticketId: integer("ticket_id").notNull().references(() => tickets.id, { onDelete: 'cascade' }),
+    userId: bigint("user_id", { mode: "number" }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+    message: text("message").notNull(),
+    isAdminReply: boolean("is_admin_reply").default(false).notNull(),
+    isAiReply: boolean("is_ai_reply").default(false).notNull(),
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ========== RELATIONS ==========
+export const ticketsRelations = relations(tickets, ({ one, many }) => ({
+    user: one(users, {
+        fields: [tickets.userId],
+        references: [users.id],
+    }),
+    messages: many(ticketMessages),
+}));
+
+export const ticketMessagesRelations = relations(ticketMessages, ({ one }) => ({
+    ticket: one(tickets, {
+        fields: [ticketMessages.ticketId],
+        references: [tickets.id],
+    }),
+    user: one(users, {
+        fields: [ticketMessages.userId],
+        references: [users.id],
+    }),
+}));
+
+// Add to existing user relations if exists, otherwise create new
+export const usersRelations = relations(users, ({ many }) => ({
+    tickets: many(tickets),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+    user: one(users, {
+        fields: [transactions.userId],
+        references: [users.id],
+    }),
+    product: one(products, {
+        fields: [transactions.productId],
+        references: [products.id],
+    }),
+    stock: one(stocks, {
+        fields: [transactions.stockId],
+        references: [stocks.id],
+    }),
+}));
+
+export const stocksRelations = relations(stocks, ({ one }) => ({
+    product: one(products, {
+        fields: [stocks.productId],
+        references: [products.id],
+    }),
+    transaction: one(transactions, {
+        fields: [stocks.id],
+        references: [transactions.stockId],
+    }),
+}));

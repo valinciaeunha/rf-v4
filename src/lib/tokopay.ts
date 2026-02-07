@@ -291,3 +291,58 @@ export async function checkTokopayOrderStatus(
     }
 }
 
+// Interface for merchant info response
+interface TokopayMerchantInfo {
+    status: number
+    rc: number
+    message: string
+    data?: {
+        nama_toko: string
+        saldo_tersedia: number
+        saldo_tertahan: number
+    }
+    ts: number
+}
+
+// Generate signature for merchant info: MD5(merchant_id:secret)
+function generateMerchantSignature(merchantId: string, secret: string): string {
+    const signatureString = `${merchantId}:${secret}`
+    return crypto.createHash("md5").update(signatureString).digest("hex")
+}
+
+// Get Tokopay Merchant Info (Balance, Store Name, etc.)
+export async function getTokopayMerchantInfo(): Promise<TokopayMerchantInfo | null> {
+    const merchantId = TOKOPAY_MERCHANT_ID
+    const secret = TOKOPAY_SECRET
+
+    if (!merchantId || !secret) {
+        console.error("Missing TOKOPAY_MERCHANT_ID or TOKOPAY_SECRET")
+        return null
+    }
+
+    const signature = generateMerchantSignature(merchantId, secret)
+    const url = `${TOKOPAY_API_URL}/merchant/balance?merchant=${merchantId}&signature=${signature}`
+
+    try {
+        const response = await fetch(url, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+
+        const data: TokopayMerchantInfo = await response.json()
+
+        if (data.status === 1 && data.rc === 200) {
+            return data
+        }
+
+        console.warn("Tokopay merchant info failed:", data)
+        return null
+
+    } catch (error) {
+        console.error("Error fetching Tokopay merchant info:", error)
+        return null
+    }
+}
