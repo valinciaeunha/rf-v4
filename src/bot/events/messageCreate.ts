@@ -26,14 +26,23 @@ const messageCreateEvent: BotEvent<typeof Events.MessageCreate> = {
             })
 
             // If no settings found, ignore
-            if (!settings) return
+            if (!settings) {
+                // console.log(`[Bot] Ignored: No settings found for guild ${message.guildId}`)
+                return
+            }
 
             // 4. Check AI Enabled
-            if (!settings.aiChatEnabled) return
+            if (!settings.aiChatEnabled) {
+                // console.log(`[Bot] Ignored: AI Chat disabled for guild ${message.guildId}`)
+                return
+            }
 
             // 5. Check Category
             const categoryIdsString = settings.aiChatCategoryIds
-            if (!categoryIdsString || categoryIdsString.trim() === '') return
+            if (!categoryIdsString || categoryIdsString.trim() === '') {
+                console.log(`[Bot] Ignored: No AI categories configured for guild ${message.guildId}`)
+                return
+            }
 
             // Get channel parent ID (Category)
             const channel = message.channel
@@ -48,7 +57,10 @@ const messageCreateEvent: BotEvent<typeof Events.MessageCreate> = {
 
             const allowedCategories = categoryIdsString.split(',').map(id => id.trim())
 
-            if (!allowedCategories.includes(parentId)) return
+            if (!allowedCategories.includes(parentId)) {
+                // console.log(`[Bot] Ignored: Category mismatch. Channel Parent: ${parentId}, Allowed: ${allowedCategories}`)
+                return
+            }
 
             // 6. Process AI
             await channel.sendTyping()
