@@ -75,8 +75,12 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 # Create storage directory for bot logs
 RUN mkdir -p storage/logs && chown -R nextjs:nodejs storage
+
+# Copy drizzle migration files
+COPY --from=builder /app/drizzle ./drizzle
 
 USER nextjs
 
