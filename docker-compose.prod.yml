@@ -24,6 +24,7 @@ services:
       - DISCORD_OWNER_ID=${DISCORD_OWNER_ID}
       - TOKOPAY_MERCHANT_ID=${TOKOPAY_MERCHANT_ID}
       - TOKOPAY_SECRET=${TOKOPAY_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
     volumes:
       - ./storage/logs:/app/storage/logs
       - ./public/uploads:/app/public/uploads
