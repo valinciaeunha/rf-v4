@@ -12,8 +12,13 @@ import { getBotSettings } from "@/lib/actions/bot-settings"
 // For now, let's allow user to input.
 const DEFAULT_GUILD_ID = process.env.DISCORD_GUILD_ID || ""
 
-export default async function DiscordBotSettingsPage() {
-    const settings = await getBotSettings(DEFAULT_GUILD_ID)
+export default async function DiscordBotSettingsPage({
+    searchParams,
+}: {
+    searchParams: { guildId?: string }
+}) {
+    const targetGuildId = searchParams?.guildId || DEFAULT_GUILD_ID
+    const settings = await getBotSettings(targetGuildId)
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -37,7 +42,7 @@ export default async function DiscordBotSettingsPage() {
                     <CardContent>
                         <BotSettingsForm
                             initialData={settings}
-                            defaultGuildId={DEFAULT_GUILD_ID}
+                            defaultGuildId={targetGuildId}
                         />
                     </CardContent>
                 </Card>

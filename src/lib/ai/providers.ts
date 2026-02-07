@@ -45,14 +45,14 @@ function getProviders(): ProviderConfig[] {
         {
             name: "openrouter",
             models: [
-                "nvidia/nemotron-3-nano-30b-a3b:free",
-                "stepfun/step-3.5-flash:free",
-                "arcee-ai/trinity-large-preview:free",
+                "arcee-ai/trinity-large-preview:free", // Verified working
+                "google/gemma-2-9b-it:free",
+                "mistralai/mistral-7b-instruct:free",
+                // "nvidia/nemotron-3-nano-30b-a3b:free", // Rate limited
+                // "stepfun/step-3.5-flash:free", // Rate limited
                 "upstage/solar-pro-3:free",
                 "liquid/lfm-2.5-1.2b-instruct:free",
                 "liquid/lfm-2.5-1.2b-thinking:free",
-                "google/gemma-2-9b-it:free",
-                "mistralai/mistral-7b-instruct:free",
                 "openrouter/pony-alpha"
             ],
             apiKey: process.env.OPENROUTER_API_KEY,

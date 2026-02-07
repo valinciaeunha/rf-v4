@@ -23,9 +23,10 @@ export async function getBotSettings(guildId?: string) {
             const settings = await db.query.botSettings.findFirst({
                 where: eq(botSettings.guildId, guildId)
             })
+            // If settings exist, return them. If not, return null (handled by UI)
             return settings
         } else {
-            // If no ID provided, fetch the first one found (Single-tenant assumption)
+            // If no ID provided, try to find ANY settings (fallback)
             const settings = await db.query.botSettings.findFirst()
             return settings
         }

@@ -40,7 +40,7 @@ export function BotSettingsForm({ initialData, defaultGuildId }: SettingsFormPro
     const [loading, setLoading] = useState(false)
 
     // Fallback to "default" if no ID provided
-    const activeGuildId = initialData?.guildId || defaultGuildId || "default"
+    const activeGuildId = initialData?.guildId || defaultGuildId || ""
 
     const form = useForm<SettingsFormValues>({
         resolver: zodResolver(schema) as any,
@@ -93,6 +93,10 @@ export function BotSettingsForm({ initialData, defaultGuildId }: SettingsFormPro
                             </FormControl>
                             <FormDescription>
                                 The Discord Server ID this configuration applies to.
+                                <br />
+                                <span className="text-xs text-yellow-500">
+                                    Note: Changing this and saving will create/update settings for the new Server ID.
+                                </span>
                             </FormDescription>
                             <FormMessage />
                         </FormItem>
