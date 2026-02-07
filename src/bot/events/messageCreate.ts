@@ -18,6 +18,8 @@ const messageCreateEvent: BotEvent<typeof Events.MessageCreate> = {
         // 2. Only process guild messages (required for settings & category check)
         if (!message.guildId) return
 
+        console.log(`[Bot Debug] 📥 Msg from ${message.author.username} in ${message.channelId}: "${message.content}"`)
+
         try {
             // 3. Fetch Settings direct from DB
             const settings = await db.query.botSettings.findFirst({
@@ -25,14 +27,23 @@ const messageCreateEvent: BotEvent<typeof Events.MessageCreate> = {
             })
 
             // If no settings found, ignore
-            if (!settings) return
+            if (!settings) {
+                console.log(`[Bot Debug] ❌ No settings found for guild ${message.guildId}`)
+                return
+            }
 
             // 4. Check AI Enabled
-            if (!settings.aiChatEnabled) return
+            if (!settings.aiChatEnabled) {
+                console.log(`[Bot Debug] ❌ AI Chat Disabled for this guild`)
+                return
+            }
 
             // 5. Check Category
             const categoryIdsString = settings.aiChatCategoryIds
-            if (!categoryIdsString || categoryIdsString.trim() === '') return
+            if (!categoryIdsString || categoryIdsString.trim() === '') {
+                console.log(`[Bot Debug] ❌ No AI Categories configured`)
+                return
+            }
 
             // Get channel parent ID (Category)
             const channel = message.channel
