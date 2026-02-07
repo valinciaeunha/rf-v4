@@ -86,10 +86,15 @@ export function BotSettingsForm({ initialData, defaultGuildId }: SettingsFormPro
                     control={form.control}
                     name="guildId"
                     render={({ field }) => (
-                        <FormItem className="hidden">
+                        <FormItem>
+                            <FormLabel>Guild ID</FormLabel>
                             <FormControl>
-                                <Input type="hidden" {...field} />
+                                <Input placeholder="Enter Discord Server ID" {...field} />
                             </FormControl>
+                            <FormDescription>
+                                The Discord Server ID this configuration applies to.
+                            </FormDescription>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
