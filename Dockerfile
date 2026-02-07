@@ -83,5 +83,5 @@ RUN mkdir -p storage/logs && chown -R nextjs:nodejs storage
 COPY --from=builder /app/drizzle ./drizzle
 
 USER nextjs
-
+ 
 CMD ["npm", "run", "bot:start"]

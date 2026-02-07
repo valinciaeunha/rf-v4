@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.github
+Dockerfile
+docker-compose*
+*.md
+.eslintrc*
+.prettier*
+tsconfig.tsbuildinfo
+storage/logs
+public/uploads
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env*
+!.env.example
